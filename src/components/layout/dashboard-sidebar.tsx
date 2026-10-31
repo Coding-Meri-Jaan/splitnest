@@ -69,7 +69,7 @@ export function DashboardSidebar() {
       </div>
       <div className="border-t p-4">
         <p className="text-xs text-muted-foreground">
-          Phase 1 · Sample data only
+          SplitNest · India-first expense sharing
         </p>
       </div>
     </div>

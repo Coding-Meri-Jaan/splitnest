@@ -40,14 +40,11 @@ export function SiteHeader() {
         </nav>
 
         <div className="hidden items-center gap-2 md:flex">
-          <Link
-            href="/dashboard"
-            className={buttonVariants({ variant: "ghost" })}
-          >
-            Live demo
+          <Link href="/login" className={buttonVariants({ variant: "ghost" })}>
+            Log in
           </Link>
-          <Link href="/dashboard" className={buttonVariants()}>
-            Open dashboard
+          <Link href="/signup" className={buttonVariants()}>
+            Get started
           </Link>
         </div>
 
@@ -80,10 +77,16 @@ export function SiteHeader() {
             </nav>
             <div className="mt-auto p-4">
               <Link
-                href="/dashboard"
+                href="/signup"
                 className={cn(buttonVariants(), "w-full")}
               >
-                Open dashboard
+                Get started
+              </Link>
+              <Link
+                href="/login"
+                className={cn(buttonVariants({ variant: "ghost" }), "mt-2 w-full")}
+              >
+                Log in
               </Link>
             </div>
           </SheetContent>

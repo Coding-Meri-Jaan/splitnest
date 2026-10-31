@@ -11,15 +11,15 @@ export function CallToAction() {
           Ready to settle up faster?
         </h2>
         <p className="mx-auto mt-3 max-w-xl text-primary-foreground/80">
-          Explore the SplitNest dashboard with realistic sample data. No
-          accounts, no setup, no payments.
+          Create a free account, start a nest, and settle up over UPI. No card
+          needed.
         </p>
         <div className="mt-8 flex justify-center">
           <Link
-            href="/dashboard"
+            href="/signup"
             className={buttonVariants({ size: "lg", variant: "secondary" })}
           >
-            Open the dashboard
+            Get started free
             <ArrowRightIcon />
           </Link>
         </div>

@@ -24,14 +24,19 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { currentUserId, getMember } from "@/data/sample-data";
+import { logoutAction } from "@/lib/auth/actions";
 import { getInitials } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-export function DashboardTopbar() {
+interface DashboardTopbarProps {
+  user: {
+    fullName: string;
+    email: string;
+  };
+}
+
+export function DashboardTopbar({ user }: DashboardTopbarProps) {
   const [open, setOpen] = useState(false);
-  const user = getMember(currentUserId);
-  const userName = user?.name ?? "Guest";
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-background/80 px-4 backdrop-blur md:px-6">
@@ -66,32 +71,37 @@ export function DashboardTopbar() {
           aria-label="Search"
           placeholder="Search expenses, groups, people"
           className="pl-8"
+          disabled
         />
       </div>
 
       <div className="ml-auto flex items-center gap-1.5">
-        <Button variant="ghost" size="icon-sm" aria-label="Notifications">
+        <Button variant="ghost" size="icon-sm" aria-label="Notifications" disabled>
           <BellIcon />
         </Button>
 
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2 rounded-lg px-1.5 py-1 transition-colors hover:bg-muted">
             <Avatar size="sm">
-              <AvatarFallback>{getInitials(userName)}</AvatarFallback>
+              <AvatarFallback>{getInitials(user.fullName)}</AvatarFallback>
             </Avatar>
             <span className="hidden text-sm font-medium sm:inline">
-              {userName}
+              {user.fullName}
             </span>
             <ChevronDownIcon className="hidden size-4 text-muted-foreground sm:inline" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-48">
-            <DropdownMenuLabel>{userName}</DropdownMenuLabel>
+            <DropdownMenuLabel>{user.email}</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem disabled>
+            <DropdownMenuItem render={<Link href="/dashboard/settings" />}>
               <SettingsIcon />
               Settings
             </DropdownMenuItem>
-            <DropdownMenuItem disabled>
+            <DropdownMenuItem
+              onClick={() => {
+                void logoutAction();
+              }}
+            >
               <LogOutIcon />
               Sign out
             </DropdownMenuItem>

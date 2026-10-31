@@ -1,4 +1,7 @@
+import { Trash2Icon } from "lucide-react";
+
 import { Amount } from "@/components/shared/amount";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -7,22 +10,34 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getGroup, getMember } from "@/data/sample-data";
 import { getCategoryMeta } from "@/lib/categories";
+import { deleteExpenseAction } from "@/lib/data/actions";
 import { formatDate } from "@/lib/format";
-import type { Expense } from "@/types";
+import type { ExpenseView } from "@/types";
 
 interface ExpenseTableProps {
-  expenses: Expense[];
+  expenses: ExpenseView[];
   showGroup?: boolean;
+  showDelete?: boolean;
   className?: string;
+  emptyMessage?: string;
 }
 
 export function ExpenseTable({
   expenses,
   showGroup = true,
+  showDelete = false,
   className,
+  emptyMessage = "No expenses yet. Add the first one.",
 }: ExpenseTableProps) {
+  if (expenses.length === 0) {
+    return (
+      <p className="px-4 py-8 text-center text-sm text-muted-foreground">
+        {emptyMessage}
+      </p>
+    );
+  }
+
   return (
     <Table className={className}>
       <TableHeader>
@@ -31,14 +46,13 @@ export function ExpenseTable({
           {showGroup ? <TableHead>Group</TableHead> : null}
           <TableHead>Paid by</TableHead>
           <TableHead className="text-right">Amount</TableHead>
+          {showDelete ? <TableHead className="w-10" /> : null}
         </TableRow>
       </TableHeader>
       <TableBody>
         {expenses.map((expense) => {
           const category = getCategoryMeta(expense.category);
           const CategoryIcon = category.icon;
-          const payer = getMember(expense.paidById);
-          const group = getGroup(expense.groupId);
 
           return (
             <TableRow key={expense.id}>
@@ -57,15 +71,31 @@ export function ExpenseTable({
               </TableCell>
               {showGroup ? (
                 <TableCell className="text-muted-foreground">
-                  {group?.name ?? "—"}
+                  {expense.groupName}
                 </TableCell>
               ) : null}
               <TableCell className="text-muted-foreground">
-                {payer?.name ?? "—"}
+                {expense.paidByName}
               </TableCell>
               <TableCell className="text-right">
                 <Amount value={expense.amount} signed={false} />
               </TableCell>
+              {showDelete ? (
+                <TableCell className="text-right">
+                  <form action={deleteExpenseAction}>
+                    <input type="hidden" name="expenseId" value={expense.id} />
+                    <input type="hidden" name="groupId" value={expense.groupId} />
+                    <Button
+                      type="submit"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={`Delete ${expense.title}`}
+                    >
+                      <Trash2Icon />
+                    </Button>
+                  </form>
+                </TableCell>
+              ) : null}
             </TableRow>
           );
         })}

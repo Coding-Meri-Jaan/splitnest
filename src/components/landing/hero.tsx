@@ -13,11 +13,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { balances, getMember, summary } from "@/data/sample-data";
-import type { Balance, Member } from "@/types";
+import type { DemoBalance, DemoMember } from "@/data/sample-data";
 
 const trustPoints = [
-  "Sample data included",
-  "No sign-up needed",
+  "Free to start",
+  "UPI-ready settlements",
   "Works great on mobile",
 ];
 
@@ -26,7 +26,7 @@ export function Hero() {
     .slice(0, 3)
     .map((balance) => ({ balance, member: getMember(balance.memberId) }))
     .filter(
-      (item): item is { balance: Balance; member: Member } =>
+      (item): item is { balance: DemoBalance; member: DemoMember } =>
         Boolean(item.member)
     );
 
@@ -47,8 +47,8 @@ export function Hero() {
             who owes, and settle up in ₹ without the spreadsheet chaos.
           </p>
           <div className="flex flex-col gap-3 sm:flex-row">
-            <Link href="/dashboard" className={buttonVariants({ size: "lg" })}>
-              Open the dashboard
+            <Link href="/signup" className={buttonVariants({ size: "lg" })}>
+              Get started free
               <ArrowRightIcon />
             </Link>
             <a

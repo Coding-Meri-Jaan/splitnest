@@ -4,97 +4,175 @@ An **India-first group expense sharing** app, inspired by Splitwise. SplitNest i
 built for trips, flats, office lunches, and festive get-togethers — track who
 paid, who owes, and settle up in ₹.
 
-> **Phase 1 — Foundation.** This milestone is a polished, responsive marketing
-> landing page plus a read-only dashboard shell backed by **sample data**.
-> Authentication, a database, expense calculations, and payments are
-> intentionally **not** implemented yet.
+> **Phase 2 — Backend.** Real accounts, groups, expenses, and settlements backed
+> by Supabase (Postgres + Auth + Row Level Security). Payments are **not**
+> processed: settlements can be recorded, and a UPI deep link opens the payee's
+> app with the amount pre-filled.
 
 ## Tech stack
 
-| Concern      | Choice                                              |
-| ------------ | --------------------------------------------------- |
-| Framework    | Next.js 16 (App Router, Turbopack)                  |
-| Language     | TypeScript (strict)                                 |
-| Styling      | Tailwind CSS v4                                     |
-| UI primitives| shadcn/ui (Base UI flavor) + lucide-react icons     |
-| Linting      | ESLint (`eslint-config-next`)                       |
-| Testing      | Vitest + React Testing Library (jsdom)              |
-| Package mgr  | npm                                                 |
+| Concern       | Choice                                          |
+| ------------- | ----------------------------------------------- |
+| Framework     | Next.js 16 (App Router, Turbopack)              |
+| Language      | TypeScript (strict)                             |
+| Styling       | Tailwind CSS v4                                 |
+| UI primitives | shadcn/ui (Base UI flavor) + lucide-react icons |
+| Backend       | Supabase (Postgres, Auth, RLS)                  |
+| Linting       | ESLint (`eslint-config-next`)                   |
+| Testing       | Vitest + React Testing Library (jsdom)          |
+| Package mgr   | npm                                             |
 
 ## Prerequisites
 
-- **Node.js 24+** (required by the installed tooling; `.nvmrc` not provided)
+- **Node.js 24+** (required by the installed tooling)
 - **npm 11+**
+- A free [Supabase](https://supabase.com) project
 
 > On Windows, if `npm` is blocked by the PowerShell execution policy, use
 > `npm.cmd` instead of `npm` for the commands below.
 
-## Getting started
+## 1. Create the Supabase project
+
+1. Create a project at <https://supabase.com/dashboard>. Pick the region closest
+   to your users (Mumbai for India).
+2. Open **SQL Editor** and run these files **in order**, pasting each file's
+   contents:
+   - `supabase/migrations/0001_init.sql` — tables, indexes, triggers, RLS
+   - `supabase/migrations/0002_expenses_and_invites.sql` — invite lookup and
+     atomic expense creation
+3. Copy the project URL and anon key from **Project Settings → API**.
+
+## 2. Configure environment variables
 
 ```bash
-# 1. Install dependencies
-npm install
+cp .env.example .env.local
+```
 
-# 2. Start the development server
+Then fill in `.env.local`:
+
+| Variable                        | Where to find it                              |
+| ------------------------------- | --------------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`      | Project Settings → API → Project URL          |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Project Settings → API → anon/public key      |
+| `NEXT_PUBLIC_SITE_URL`          | `http://localhost:3000` locally               |
+
+The anon key is safe to expose: Row Level Security decides what each signed-in
+user can read or write. Never put the `service_role` key in this app.
+
+## 3. Configure Supabase Auth
+
+In **Authentication → URL Configuration**:
+
+- **Site URL**: `http://localhost:3000` locally, your Netlify URL in production.
+- **Redirect URLs**: add both
+  - `http://localhost:3000/auth/confirm`
+  - `https://<your-site>.netlify.app/auth/confirm`
+
+Email + password is enabled by default. Keeping **Confirm email** on means new
+users must click the emailed link before signing in.
+
+## 4. Run it
+
+```bash
+npm install
 npm run dev
 ```
 
-Open <http://localhost:3000>.
+Open <http://localhost:3000>, sign up, confirm the email, then create a group.
+
+> Tip: to test with two people without waiting on more emails, use Supabase
+> **Authentication → Users → Add user** with "Auto confirm" enabled.
 
 ## Scripts
 
-| Script              | What it does                                             |
-| ------------------- | -------------------------------------------------------- |
-| `npm run dev`       | Start the dev server with hot reload                     |
-| `npm run build`     | Create an optimized production build                     |
-| `npm start`         | Run the production build locally                         |
-| `npm run lint`      | Lint the project with ESLint                             |
-| `npm run typecheck` | Type-check without emitting (`tsc --noEmit`)             |
-| `npm test`          | Run the test suite once (CI-friendly)                    |
-| `npm run test:watch`| Run tests in watch mode while developing                 |
+| Script               | What it does                              |
+| -------------------- | ----------------------------------------- |
+| `npm run dev`        | Start the dev server with hot reload      |
+| `npm run build`      | Create an optimized production build      |
+| `npm start`          | Run the production build locally          |
+| `npm run lint`       | Lint the project with ESLint              |
+| `npm run typecheck`  | Type-check without emitting (`tsc --noEmit`) |
+| `npm test`           | Run the test suite once (CI-friendly)     |
+| `npm run test:watch` | Run tests in watch mode while developing  |
+
+## How money is handled
+
+- Every stored and computed amount is an **integer number of paise**
+  (`amount_paise`, `share_paise`). Rupees exist only at the UI edge
+  (`src/lib/money.ts`).
+- Equal splits are computed in `splitEqually`: the remainder (at most *n − 1*
+  paise) is handed out one paise at a time to members sorted by user id, so the
+  shares always sum to the expense total and the result is deterministic.
+- Balances are derived in TypeScript from expenses + splits + settlements
+  (`computeNetBalances`) and cleared with `simplifyDebts`, which produces the
+  fewest transfers. Nothing is stored as a running balance, so the ledger is the
+  only source of truth.
+
+## Security model
+
+- **RLS on every table.** Reads are limited to groups you belong to; expenses and
+  settlements are writable by group members; profile rows are visible to you and
+  people you share a group with.
+- **Helper functions are `security definer`** (`is_group_member`,
+  `is_group_owner`, `shares_group_with`) so policies don't recurse, and their
+  `search_path` is pinned to `''`.
+- **`find_user_for_invite`** lets a group owner resolve an email without opening
+  up the `profiles` table to the whole world.
+- **`create_expense`** writes the expense and all splits in one transaction and
+  re-validates membership and split totals server-side.
+- **Auth checks happen close to the data**, not just in the proxy: every page and
+  Server Action calls `getCurrentUser()` and the database enforces row access.
 
 ## Project structure
 
 ```
 src/
 ├─ app/
-│  ├─ layout.tsx              # Root layout + global metadata/fonts
-│  ├─ page.tsx                # Marketing landing page
-│  ├─ globals.css             # Tailwind v4 theme tokens
-│  └─ dashboard/
-│     ├─ layout.tsx           # Dashboard shell (sidebar + topbar)
-│     ├─ page.tsx             # Overview
-│     ├─ groups/page.tsx      # All groups
-│     ├─ activity/page.tsx    # All expenses
-│     └─ people/page.tsx      # Members and balances
+│  ├─ (auth)/                  # login, signup, forgot/reset password
+│  ├─ auth/confirm/route.ts    # exchanges email link for a session
+│  ├─ dashboard/
+│  │  ├─ group detail, new group, new expense, settle up, settings
+│  │  ├─ activity/, people/
+│  │  └─ layout.tsx            # sidebar + topbar shell
+│  └─ page.tsx                 # marketing landing page
 ├─ components/
-│  ├─ ui/                     # shadcn/ui primitives
-│  ├─ layout/                 # Site header/footer, dashboard sidebar/topbar
-│  ├─ landing/                # Hero, features, how-it-works, CTA
-│  ├─ dashboard/              # GroupCard, BalanceList, ExpenseTable
-│  └─ shared/                 # Logo, Amount, MemberAvatar, SummaryCard, PageHeader
-├─ data/sample-data.ts        # Sample members, groups, expenses, balances
-├─ lib/                       # format.ts, categories.ts, utils.ts
-└─ types/index.ts             # Domain types
+│  ├─ auth/                    # auth forms + submit button
+│  ├─ dashboard/               # forms, tables, cards
+│  ├─ landing/                 # hero, features, how-it-works, CTA
+│  ├─ layout/                  # site + dashboard chrome
+│  ├─ shared/                  # Logo, Amount, avatars, form message
+│  └─ ui/                      # shadcn/ui primitives
+├─ data/sample-data.ts         # landing-page demo numbers only
+├─ lib/
+│  ├─ auth/                    # server actions, session user, site URL
+│  ├─ data/                    # read queries + server actions
+│  ├─ supabase/                # browser/server clients, proxy refresh
+│  ├─ money.ts + money.test.ts # paise parsing, splits, balances
+│  ├─ upi.ts + upi.test.ts     # UPI deep links
+│  └─ format.ts, categories.ts
+├─ proxy.ts                    # Next 16 middleware (session refresh)
+└─ types/                      # view models + generated-style DB types
+supabase/migrations/           # SQL schema, RLS, functions
 ```
 
-## Manual testing
+## Deploying (Netlify)
 
-1. Run `npm run dev` and open <http://localhost:3000>.
-2. On the landing page, resize the window: the nav collapses into a menu button
-   on mobile, and the hero stacks into a single column.
-3. Click **Open dashboard** (or visit `/dashboard`) and use the sidebar to move
-   between **Overview**, **Groups**, **Activity**, and **People**. On mobile the
-   sidebar becomes a slide-out sheet.
-4. Confirm the dashboard shows INR amounts (e.g. `+₹1,500`) with green/red tones
-   and the sample groups, expenses, and people.
-5. Toggle your OS theme to light/dark and confirm both themes look correct.
+`netlify.toml` already builds with `npm run build` and publishes `.next`.
 
-## Notes for the next phase
+1. In **Site configuration → Environment variables**, add the three
+   `NEXT_PUBLIC_*` variables. Set `NEXT_PUBLIC_SITE_URL` to your production URL.
+2. Add `https://<your-site>.netlify.app/auth/confirm` to the Supabase redirect
+   URLs.
+3. Push to `main`; the Git integration redeploys automatically.
 
-- Data currently lives in `src/data/sample-data.ts` and is read-only.
-- No calculations are performed: balances and summary totals are hard-coded
-  sample values.
-- `next.config.ts` enables `cacheComponents` and `partialPrefetching`, so avoid
-  non-deterministic values (like `new Date()`) during render. The footer caches
-  the current year with the `"use cache"` directive as an example.
+## Manual test checklist
+
+1. Sign up → confirm email → land on `/dashboard`.
+2. Create a group; you appear as **Owner**.
+3. Add a second account by email (they must have signed up first).
+4. Add an expense split equally between everyone; check the per-person share.
+5. Add a ₹0.03 expense between 2 people — shares must be ₹0.02 / ₹0.01.
+6. Record a settlement; balances and suggested transfers update.
+7. Add a UPI id in **Settings**, then use **Pay via UPI** on a suggested
+   transfer.
+8. Try opening another user's group id directly — you should get a 404.
