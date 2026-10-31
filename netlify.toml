@@ -1,0 +1,9 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# The Netlify Next.js Runtime handles App Router output in `.next`.
+# Netlify auto-installs it for projects that depend on `next`.
