@@ -6,9 +6,12 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 import type { AuthActionState } from "./types";
 import { getSiteUrl, safePath } from "./site-url";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 8;
+const NOT_CONFIGURED =
+  "Sign-in is not set up yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local, then restart the server.";
 
 function readField(formData: FormData, name: string): string {
   const value = formData.get(name);
@@ -19,6 +22,10 @@ export async function loginAction(
   _previous: AuthActionState,
   formData: FormData,
 ): Promise<AuthActionState> {
+  if (!isSupabaseConfigured()) {
+    return { error: NOT_CONFIGURED, message: null };
+  }
+
   const email = readField(formData, "email").toLowerCase();
   const password = readField(formData, "password");
 
@@ -40,6 +47,10 @@ export async function signupAction(
   _previous: AuthActionState,
   formData: FormData,
 ): Promise<AuthActionState> {
+  if (!isSupabaseConfigured()) {
+    return { error: NOT_CONFIGURED, message: null };
+  }
+
   const fullName = readField(formData, "fullName");
   const email = readField(formData, "email").toLowerCase();
   const password = readField(formData, "password");
@@ -97,6 +108,10 @@ export async function requestPasswordResetAction(
   _previous: AuthActionState,
   formData: FormData,
 ): Promise<AuthActionState> {
+  if (!isSupabaseConfigured()) {
+    return { error: NOT_CONFIGURED, message: null };
+  }
+
   const email = readField(formData, "email").toLowerCase();
 
   if (!EMAIL_PATTERN.test(email)) {
@@ -120,6 +135,10 @@ export async function updatePasswordAction(
   _previous: AuthActionState,
   formData: FormData,
 ): Promise<AuthActionState> {
+  if (!isSupabaseConfigured()) {
+    return { error: NOT_CONFIGURED, message: null };
+  }
+
   const password = readField(formData, "password");
   const confirmPassword = readField(formData, "confirmPassword");
 
@@ -155,6 +174,10 @@ export async function updatePasswordAction(
 }
 
 export async function logoutAction(): Promise<void> {
+  if (!isSupabaseConfigured()) {
+    redirect("/");
+  }
+
   const supabase = await createSupabaseServerClient();
   await supabase.auth.signOut();
   redirect("/");

@@ -16,8 +16,8 @@ export async function SiteFooter() {
         <div className="space-y-3">
           <Logo />
           <p className="max-w-xs text-sm text-muted-foreground">
-            India-first expense sharing for trips, flats, and teams. Built as a
-            Phase 1 demo with realistic sample data.
+            India-first expense sharing for trips, flats, and teams. Track who
+            paid, who owes, and settle up over UPI.
           </p>
         </div>
         <nav className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
@@ -30,17 +30,21 @@ export async function SiteFooter() {
           >
             How it works
           </a>
+          <Link href="/login" className="transition-colors hover:text-foreground">
+            Log in
+          </Link>
           <Link
-            href="/dashboard"
+            href="/signup"
             className="transition-colors hover:text-foreground"
           >
-            Dashboard
+            Get started
           </Link>
         </nav>
       </div>
       <div className="border-t">
         <p className="mx-auto w-full max-w-6xl px-4 py-4 text-xs text-muted-foreground sm:px-6">
-          © {year} SplitNest. Demo only — no payments or real accounts.
+          © {year} SplitNest. Settlements are recorded, not processed — UPI links
+          open your own payment app.
         </p>
       </div>
     </footer>
