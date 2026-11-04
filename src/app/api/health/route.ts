@@ -34,6 +34,8 @@ export async function GET() {
     projectRef: null as string | null,
     siteUrl: process.env.NEXT_PUBLIC_SITE_URL ?? null,
     auth: "skipped" as string,
+    signupEnabled: null as boolean | null,
+    emailConfirmationRequired: null as boolean | null,
     tables: {} as Record<string, string>,
     nextStep: "",
   };
@@ -55,6 +57,15 @@ export async function GET() {
       cache: "no-store",
     });
     report.auth = authResponse.ok ? "ok" : `http-${authResponse.status}`;
+
+    if (authResponse.ok) {
+      const settings = (await authResponse.json()) as {
+        mailer_autoconfirm?: boolean;
+        disable_signup?: boolean;
+      };
+      report.emailConfirmationRequired = settings.mailer_autoconfirm === false;
+      report.signupEnabled = settings.disable_signup !== true;
+    }
   } catch {
     report.auth = "unreachable";
   }
@@ -89,6 +100,14 @@ export async function GET() {
   }
   if (report.auth !== "ok") {
     steps.push("Auth endpoint unreachable. Check the project URL and anon key.");
+  }
+  if (report.emailConfirmationRequired) {
+    steps.push(
+      "Email confirmation is ON, so each signup needs an email click and Supabase's built-in sender is rate-limited. For demos turn off Authentication → Sign In / Providers → Email → Confirm email, or confirm users manually in Authentication → Users.",
+    );
+  }
+  if (report.signupEnabled === false) {
+    steps.push("Email signups are disabled in Authentication → Sign In / Providers.");
   }
   if (missing.length > 0) {
     steps.push(
