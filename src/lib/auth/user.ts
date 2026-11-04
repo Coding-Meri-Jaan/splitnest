@@ -20,6 +20,12 @@ export interface SessionUser {
  * data, which Cache Components requires to stream.
  */
 export const getCurrentUser = cache(async (): Promise<SessionUser> => {
+  // Without configuration there is no session to read; send people to the
+  // login screen, which explains what is missing instead of crashing.
+  if (!isSupabaseConfigured()) {
+    redirect("/login");
+  }
+
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
