@@ -10,7 +10,7 @@ export function getSupabaseEnv(): { url: string; anonKey: string } {
     throw new Error(MISSING_ENV_MESSAGE);
   }
 
-  return { url, anonKey };
+  return { url: url.replace(/\/+$/, ""), anonKey };
 }
 
 export function isSupabaseConfigured(): boolean {
@@ -18,4 +18,17 @@ export function isSupabaseConfigured(): boolean {
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   );
+}
+
+/**
+ * True when NEXT_PUBLIC_SUPABASE_URL points at the Supabase dashboard
+ * (https://supabase.com/dashboard/project/<ref>) instead of the project's
+ * API endpoint (https://<ref>.supabase.co). This is the single most common
+ * setup mistake and it makes every auth call fail with a confusing error.
+ */
+export function isSupabaseUrlMisconfigured(): boolean {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!url) return false;
+
+  return /supabase\.com\/dashboard/i.test(url);
 }
