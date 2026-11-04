@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 import type { AuthActionState } from "./types";
+import { describeAuthError } from "./errors";
 import { getSiteUrl, safePath } from "./site-url";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 
@@ -12,46 +13,6 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 8;
 const NOT_CONFIGURED =
   "Sign-in is not set up yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local, then restart the server.";
-
-/**
- * Turns a Supabase auth error into something a human can act on.
- * The raw error is logged so it also shows up in the server logs.
- */
-function describeAuthError(
-  error: { message: string; status?: number; code?: string },
-  fallback: string,
-): string {
-  console.error("[auth] supabase error", {
-    status: error.status,
-    code: error.code,
-    message: error.message,
-  });
-
-  const message = error.message.toLowerCase();
-
-  if (message.includes("rate limit") || message.includes("too many")) {
-    return "Too many emails were sent just now. Wait a few minutes and try again.";
-  }
-  if (message.includes("redirect") && message.includes("not allowed")) {
-    return "Supabase rejected the confirmation link. Add <your-site>/auth/confirm to Authentication → URL Configuration in Supabase.";
-  }
-  if (
-    message.includes("failed to fetch") ||
-    message.includes("fetch failed") ||
-    message.includes("network") ||
-    error.status === 0
-  ) {
-    return "Cannot reach Supabase. Check NEXT_PUBLIC_SUPABASE_URL and the anon key.";
-  }
-  if (message.includes("invalid api key") || message.includes("no api key")) {
-    return "Supabase rejected the anon key. Copy it again from Project Settings → API.";
-  }
-  if (message.includes("invalid email")) {
-    return "That email address was rejected by Supabase. Try a different one.";
-  }
-
-  return fallback;
-}
 
 function readField(formData: FormData, name: string): string {
   const value = formData.get(name);

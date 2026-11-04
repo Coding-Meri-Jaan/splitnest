@@ -71,6 +71,13 @@ In **Authentication → URL Configuration**:
 Email + password is enabled by default. Keeping **Confirm email** on means new
 users must click the emailed link before signing in.
 
+> **Hitting "email rate limit exceeded"?** Supabase's built-in email service
+> only sends a handful of messages per hour, and it is not meant for
+> production. For demos and testing, either turn **Confirm email** off under
+> **Authentication → Sign In / Providers → Email**, or confirm users manually
+> from **Authentication → Users**. For real traffic, connect your own SMTP
+> provider (Resend, Brevo, Postmark) under **Authentication → Emails**.
+
 ## 4. Run it
 
 ```bash
@@ -81,7 +88,9 @@ npm run dev
 Open <http://localhost:3000>, sign up, confirm the email, then create a group.
 
 > Tip: to test with two people without waiting on more emails, use Supabase
-> **Authentication → Users → Add user** with "Auto confirm" enabled.
+> **Authentication → Users → Add user**, set a password and enable
+> **Auto Confirm User**. You can then log in on the site immediately — no email
+> is sent and no rate limit applies.
 
 ## Scripts
 
