@@ -97,6 +97,15 @@ export async function signupAction(
     };
   }
 
+  // With email-enumeration protection on, Supabase answers with a user that has
+  // no identities instead of an error when the address is already registered.
+  if (data.user && data.user.identities?.length === 0) {
+    return {
+      error: "An account with this email already exists. Try signing in.",
+      message: null,
+    };
+  }
+
   // Email confirmation disabled in Supabase: a session is returned immediately.
   if (data.session) {
     redirect("/dashboard");

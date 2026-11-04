@@ -19,7 +19,7 @@ as $$
   limit 1;
 $$;
 
-revoke all on function public.find_user_for_invite(uuid, text) from anon;
+revoke all on function public.find_user_for_invite(uuid, text) from public;
 grant execute on function public.find_user_for_invite(uuid, text) to authenticated;
 
 -- ---------------------------------------------------------------------------
@@ -102,7 +102,7 @@ $$;
 
 revoke all on function public.create_expense(
   uuid, text, bigint, uuid, public.expense_category, date, text, jsonb
-) from anon;
+) from public;
 grant execute on function public.create_expense(
   uuid, text, bigint, uuid, public.expense_category, date, text, jsonb
 ) to authenticated;

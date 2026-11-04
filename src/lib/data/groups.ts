@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { computeNetBalances, simplifyDebts } from "@/lib/money";
+import { isMissingSchemaMessage, SchemaMissingError } from "@/lib/data/errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/database";
 import type {
@@ -43,7 +44,11 @@ const EMPTY_LEDGER: Ledger = {
 const toRupees = (paise: number) => paise / 100;
 
 function fail(context: string, message: string): never {
-  throw new Error(`Could not load ${context}: ${message}`);
+  const fullMessage = `Could not load ${context}: ${message}`;
+  if (isMissingSchemaMessage(message)) {
+    throw new SchemaMissingError(fullMessage);
+  }
+  throw new Error(fullMessage);
 }
 
 function groupBy<T, K>(items: T[], key: (item: T) => K): Map<K, T[]> {

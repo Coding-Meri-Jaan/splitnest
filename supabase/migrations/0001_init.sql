@@ -338,9 +338,9 @@ create policy "settlements_delete_author_or_owner" on public.settlements
 -- ---------------------------------------------------------------------------
 -- Privileges
 -- ---------------------------------------------------------------------------
-revoke all on function public.is_group_member(uuid) from anon;
-revoke all on function public.is_group_owner(uuid) from anon;
-revoke all on function public.shares_group_with(uuid) from anon;
+revoke all on function public.is_group_member(uuid) from public;
+revoke all on function public.is_group_owner(uuid) from public;
+revoke all on function public.shares_group_with(uuid) from public;
 grant execute on function public.is_group_member(uuid) to authenticated;
 grant execute on function public.is_group_owner(uuid) to authenticated;
 grant execute on function public.shares_group_with(uuid) to authenticated;
