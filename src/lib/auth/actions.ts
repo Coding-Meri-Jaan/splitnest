@@ -6,14 +6,12 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 import type { AuthActionState } from "./types";
 import { getSiteUrl, safePath } from "./site-url";
-import { isSupabaseConfigured, isSupabaseUrlMisconfigured } from "@/lib/supabase/env";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 8;
 const NOT_CONFIGURED =
   "Sign-in is not set up yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local, then restart the server.";
-const URL_MISCONFIGURED =
-  "Supabase is misconfigured: NEXT_PUBLIC_SUPABASE_URL must be https://<project-ref>.supabase.co — not the supabase.com/dashboard URL.";
 
 /**
  * Turns a Supabase auth error into something a human can act on.
@@ -67,9 +65,6 @@ export async function loginAction(
   if (!isSupabaseConfigured()) {
     return { error: NOT_CONFIGURED, message: null };
   }
-  if (isSupabaseUrlMisconfigured()) {
-    return { error: URL_MISCONFIGURED, message: null };
-  }
 
   const email = readField(formData, "email").toLowerCase();
   const password = readField(formData, "password");
@@ -97,9 +92,6 @@ export async function signupAction(
 ): Promise<AuthActionState> {
   if (!isSupabaseConfigured()) {
     return { error: NOT_CONFIGURED, message: null };
-  }
-  if (isSupabaseUrlMisconfigured()) {
-    return { error: URL_MISCONFIGURED, message: null };
   }
 
   const fullName = readField(formData, "fullName");
@@ -162,9 +154,6 @@ export async function requestPasswordResetAction(
   if (!isSupabaseConfigured()) {
     return { error: NOT_CONFIGURED, message: null };
   }
-  if (isSupabaseUrlMisconfigured()) {
-    return { error: URL_MISCONFIGURED, message: null };
-  }
 
   const email = readField(formData, "email").toLowerCase();
 
@@ -200,9 +189,6 @@ export async function updatePasswordAction(
 ): Promise<AuthActionState> {
   if (!isSupabaseConfigured()) {
     return { error: NOT_CONFIGURED, message: null };
-  }
-  if (isSupabaseUrlMisconfigured()) {
-    return { error: URL_MISCONFIGURED, message: null };
   }
 
   const password = readField(formData, "password");
