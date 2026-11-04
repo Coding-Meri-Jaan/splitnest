@@ -165,6 +165,16 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
+-- Accounts created before this migration was applied still need a profile row.
+insert into public.profiles (id, email, full_name)
+select
+  u.id,
+  u.email,
+  coalesce(nullif(trim(u.raw_user_meta_data ->> 'full_name'), ''), split_part(u.email, '@', 1))
+from auth.users u
+where u.email is not null
+on conflict (id) do nothing;
+
 -- Creating a group makes the creator its owner.
 create or replace function public.handle_new_group()
 returns trigger
