@@ -52,19 +52,23 @@ export async function createGroupAction(
   }
 
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase
-    .from("groups")
-    .insert({ name, emoji, created_by: user.id })
-    .select("id")
-    .single();
 
-  if (error || !data) {
+  // Generate the id here instead of asking PostgREST to return the inserted
+  // row. The groups SELECT policy only covers members, and the owner row in
+  // group_members is written by an AFTER INSERT trigger, so `insert().select()`
+  // fails with an RLS error when PostgREST tries to read the new row back.
+  const groupId = crypto.randomUUID();
+  const { error } = await supabase
+    .from("groups")
+    .insert({ id: groupId, name, emoji, created_by: user.id });
+
+  if (error) {
     return { error: "Could not create the group. Please try again.", message: null };
   }
 
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/groups");
-  redirect(`/dashboard/groups/${data.id}`);
+  redirect(`/dashboard/groups/${groupId}`);
 }
 
 export async function addMemberAction(
