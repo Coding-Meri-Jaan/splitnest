@@ -40,6 +40,8 @@ paid, who owes, and settle up in ₹.
    - `supabase/migrations/0001_init.sql` — tables, indexes, triggers, RLS
    - `supabase/migrations/0002_expenses_and_invites.sql` — invite lookup and
      atomic expense creation
+   - `supabase/migrations/0003_profile_names.sql` — stop using email handles as
+     display names and repair existing profiles
 3. Copy the project URL and anon key from **Project Settings → API**.
 
 ## 2. Configure environment variables

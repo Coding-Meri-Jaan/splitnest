@@ -25,7 +25,14 @@ export function ProfileForm({ fullName, city, upiId }: ProfileFormProps) {
         <label htmlFor="fullName" className="text-sm font-medium">
           Full name
         </label>
-        <Input id="fullName" name="fullName" defaultValue={fullName} required />
+        <Input
+          id="fullName"
+          name="fullName"
+          defaultValue={fullName}
+          placeholder="Devesh Sharma"
+          autoComplete="name"
+          required
+        />
       </div>
 
       <div className="space-y-2">

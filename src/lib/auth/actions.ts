@@ -1,5 +1,6 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -199,11 +200,31 @@ export async function updatePasswordAction(
 }
 
 export async function logoutAction(): Promise<void> {
-  if (!isSupabaseConfigured()) {
-    redirect("/");
+  if (isSupabaseConfigured()) {
+    try {
+      const supabase = await createSupabaseServerClient();
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error("[auth] signOut failed", {
+          status: error.status,
+          code: error.code,
+          message: error.message,
+        });
+      }
+    } catch (error) {
+      // A network failure must not keep the browser signed in.
+      console.error("[auth] signOut threw", error);
+    }
+
+    // signOut normally clears the auth cookies. Remove any that survived a
+    // failed call so the next request cannot refresh the old session.
+    const cookieStore = await cookies();
+    for (const { name } of cookieStore.getAll()) {
+      if (name.startsWith("sb-") && name.includes("-auth-token")) {
+        cookieStore.delete(name);
+      }
+    }
   }
 
-  const supabase = await createSupabaseServerClient();
-  await supabase.auth.signOut();
   redirect("/");
 }

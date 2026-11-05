@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { BellIcon, ChevronDownIcon, LogOutIcon, MenuIcon, SearchIcon, SettingsIcon } from "lucide-react";
 
@@ -11,6 +11,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -37,9 +38,17 @@ interface DashboardTopbarProps {
 
 export function DashboardTopbar({ user }: DashboardTopbarProps) {
   const [open, setOpen] = useState(false);
+  const logoutForm = useRef<HTMLFormElement>(null);
+  const label = user.fullName || "Your account";
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-background/80 px-4 backdrop-blur md:px-6">
+      {/*
+        Submit the server action through a real form. Calling the action
+        directly from onClick can race with the menu closing and leave the
+        session cookies behind, which made "Sign out" appear to do nothing.
+      */}
+      <form ref={logoutForm} action={logoutAction} className="hidden" />
       <Sheet open={open} onOpenChange={(next) => setOpen(next)}>
         <SheetTrigger
           aria-label="Open navigation"
@@ -83,28 +92,29 @@ export function DashboardTopbar({ user }: DashboardTopbarProps) {
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2 rounded-lg px-1.5 py-1 transition-colors hover:bg-muted">
             <Avatar size="sm">
-              <AvatarFallback>{getInitials(user.fullName)}</AvatarFallback>
+              <AvatarFallback>{getInitials(label)}</AvatarFallback>
             </Avatar>
-            <span className="hidden text-sm font-medium sm:inline">
-              {user.fullName}
-            </span>
+            <span className="hidden text-sm font-medium sm:inline">{label}</span>
             <ChevronDownIcon className="hidden size-4 text-muted-foreground sm:inline" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-48">
-            <DropdownMenuLabel>{user.email}</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem render={<Link href="/dashboard/settings" />}>
-              <SettingsIcon />
-              Settings
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => {
-                void logoutAction();
-              }}
-            >
-              <LogOutIcon />
-              Sign out
-            </DropdownMenuItem>
+            {/* Base UI's GroupLabel throws when it is not inside a Group. */}
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>{user.email}</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem render={<Link href="/dashboard/settings" />}>
+                <SettingsIcon />
+                Settings
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  logoutForm.current?.requestSubmit();
+                }}
+              >
+                <LogOutIcon />
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

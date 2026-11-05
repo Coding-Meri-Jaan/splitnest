@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { displayName } from "@/lib/display-name";
 import { computeNetBalances, simplifyDebts } from "@/lib/money";
 import { isMissingSchemaMessage, SchemaMissingError } from "@/lib/data/errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -161,7 +162,7 @@ function memberMap(ledger: Ledger): Map<string, Person> {
       profile.id,
       {
         id: profile.id,
-        name: profile.full_name.trim() || profile.email.split("@")[0] || "Member",
+        name: displayName(profile),
         email: profile.email,
         city: profile.city,
       },

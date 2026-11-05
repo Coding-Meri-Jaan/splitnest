@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/lib/auth/user";
+import { displayName } from "@/lib/display-name";
 import { parseRupeesToPaise, splitEqually } from "@/lib/money";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { ExpenseCategory } from "@/types/database";
@@ -114,7 +115,14 @@ export async function addMemberAction(
   }
 
   revalidateGroup(groupId);
-  return { error: null, message: `${match.full_name || email} was added to the group.` };
+  const addedName = displayName({ full_name: match.full_name, email });
+  return {
+    error: null,
+    message:
+      addedName === "Member"
+        ? "They were added to the group."
+        : `${addedName} was added to the group.`,
+  };
 }
 
 export async function createExpenseAction(

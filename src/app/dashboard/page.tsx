@@ -40,7 +40,7 @@ async function Overview() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={`Welcome back, ${firstName}`}
+        title={firstName ? `Welcome back, ${firstName}` : "Welcome back"}
         description="Here is where things stand across your groups."
         action={
           <Button render={<Link href="/dashboard/groups" />}>
@@ -49,6 +49,18 @@ async function Overview() {
           </Button>
         }
       />
+
+      {user.needsName ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-300/70 bg-amber-50 px-4 py-3 text-sm dark:border-amber-900/60 dark:bg-amber-950/30">
+          <p>
+            Add your name so friends see <strong>you</strong> in &ldquo;Paid by&rdquo; instead of a
+            placeholder.
+          </p>
+          <Button variant="outline" size="sm" render={<Link href="/dashboard/settings" />}>
+            Add your name
+          </Button>
+        </div>
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <SummaryCard

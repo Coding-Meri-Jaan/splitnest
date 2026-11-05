@@ -28,7 +28,11 @@ async function SettingsContent() {
     <Card>
       <CardHeader>
         <CardTitle>Your profile</CardTitle>
-        <CardDescription>Signed in as {user.email}</CardDescription>
+        <CardDescription>
+          {user.needsName
+            ? "Add your name so friends see it in “Paid by” and balances."
+            : `Signed in as ${user.email}`}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <ProfileForm fullName={user.fullName} city={user.city} upiId={user.upiId} />
