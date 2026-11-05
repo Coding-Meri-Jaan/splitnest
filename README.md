@@ -76,7 +76,14 @@ users must click the emailed link before signing in.
 > production. For demos and testing, either turn **Confirm email** off under
 > **Authentication → Sign In / Providers → Email**, or confirm users manually
 > from **Authentication → Users**. For real traffic, connect your own SMTP
-> provider (Resend, Brevo, Postmark) under **Authentication → Emails**.
+> provider (Resend, Brevo, Postmark) under **Authentication → Emails → SMTP
+> Settings**.
+
+> **Emails never arrive?** The built-in mailer only delivers to addresses that
+> belong to your organization's team (Organization → Team) and is capped at 2
+> messages per hour. Configure custom SMTP to reach everyone. Supabase applies a
+> default limit of 30 messages per hour to custom SMTP; raise it under
+> **Authentication → Rate Limits** once your sending reputation is established.
 
 ## 4. Run it
 
