@@ -75,22 +75,54 @@ In **Authentication → URL Configuration**:
   - `http://localhost:3000/auth/confirm`
   - `https://<your-site>.netlify.app/auth/confirm`
 
-Email + password is enabled by default. **Keep Confirm email on** — it is the
-only real defence against made-up addresses. SplitNest also validates the
-address before calling Supabase (format, placeholder local parts, disposable
-domains, reserved TLDs) and does a best-effort DNS MX/A lookup, but none of
-those can prove an inbox exists. Only a delivered confirmation link can.
+Email + password is enabled by default. **Confirm email must stay on.** The app
+now fails closed: `signupAction` reads the project's auth settings and refuses
+email/password signup whenever Supabase is auto-confirming addresses, or when
+the settings cannot be read. A made-up address therefore cannot become a
+working account through email signup.
 
-### Email delivery (required for confirmation)
+SplitNest still validates the address first (format, placeholder local parts,
+disposable domains, reserved TLDs, DNS MX/A), but only a delivered confirmation
+link proves the inbox exists.
 
-Supabase's built-in mailer is a demo service: it only delivers to addresses on
-your organization's team and is capped at a couple of messages per hour.
+> **Accounts created before this gate** may already be auto-confirmed fakes.
+> Delete them in **Authentication → Users** (or provide a service-role key and
+> remove them with the admin API). The gate only prevents new ones.
 
-- For **real users**, connect custom SMTP under **Authentication → Emails →
-  SMTP Settings** (Resend, Brevo, Postmark, etc.).
-- For **local testing**, either turn **Confirm email** off under
-  **Authentication → Sign In / Providers → Email**, or add users manually from
-  **Authentication → Users** with **Auto Confirm User** enabled.
+### One-command setup (recommended)
+
+1. Create a free SMTP account with any provider. If you do not own a domain,
+   verify a single sender address — SendGrid and Brevo both support this.
+2. Create a Supabase personal access token at
+   <https://supabase.com/dashboard/account/tokens>.
+3. Fill `SUPABASE_ACCESS_TOKEN`, `AUTH_SMTP_*`, and `AUTH_SITE_URL` in
+   `.env.local` (see `.env.example`).
+4. Preview, then apply:
+
+```bash
+npm run auth:configure -- --dry-run
+npm run auth:configure
+```
+
+The script sets `mailer_autoconfirm=false`, disables sign-in by unverified
+users, stores the SMTP credentials, and keeps `/auth/confirm` in the redirect
+allow-list. It never prints secrets. `AUTH_REDIRECT_URLS` is replaced as a
+whole, so include every URL you need if you override it.
+
+### Dashboard alternative
+
+1. **Authentication → Sign In / Providers → Email**: turn **Confirm email** on.
+2. **Authentication → Emails → SMTP Settings**: add the provider credentials
+   and a verified From address.
+3. **Authentication → URL Configuration**: keep both `/auth/confirm` URLs.
+
+Until one of these is done, email/password signup shows a clear "paused"
+message and only Google sign-in can create accounts. Existing accounts can
+still log in.
+
+> **Local testing:** add test users from **Authentication → Users** with
+> **Auto Confirm User** enabled, or use Google. Do not turn Confirm email off
+> on a project you deploy.
 
 > **Hitting "email rate limit exceeded"?** Supabase's built-in sender hit its
 > cap. Wait about an hour, or configure custom SMTP. The app shows a hint that

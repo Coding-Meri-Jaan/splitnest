@@ -14,6 +14,10 @@ import {
 } from "./email";
 import { describeAuthError } from "./errors";
 import { validatePassword } from "./password";
+import {
+  emailSignupSafety,
+  getAuthProjectSettings,
+} from "./project-settings";
 import { getSiteUrl, safePath } from "./site-url";
 import { markSessionActive, clearSessionCookies } from "./session-server";
 import type { AuthActionState } from "./types";
@@ -124,6 +128,30 @@ export async function signupAction(
     return { error: "Passwords do not match.", message: null };
   }
 
+  // Hard gate: never create an email/password account while Supabase is
+  // auto-confirming addresses. Without this, any well-formed made-up address
+  // becomes a fully working account before an inbox is ever checked.
+  const signupSafety = emailSignupSafety(await getAuthProjectSettings());
+
+  if (signupSafety === "confirmation-off") {
+    console.error(
+      "[auth] email signup blocked: Supabase Confirm email is OFF in project settings",
+    );
+    return {
+      error:
+        "Email sign-up is paused because this project is not verifying addresses yet. Use Continue with Google, or ask the operator to turn on Confirm email and custom SMTP in Supabase.",
+      message: null,
+    };
+  }
+
+  if (signupSafety === "unknown") {
+    return {
+      error:
+        "We could not confirm that sign-up is safe right now. Try again in a moment, or use Continue with Google.",
+      message: null,
+    };
+  }
+
   const siteUrl = await getSiteUrl();
   const supabase = await createSupabaseServerClient({ remember: true });
   const { data, error } = await supabase.auth.signUp({
@@ -159,12 +187,27 @@ export async function signupAction(
     };
   }
 
-  // Email confirmation disabled in Supabase: a session is returned immediately.
-  // Enabling confirm email (and SMTP) is the only way to make this a real check;
-  // see README "Configure Supabase Auth" and /api/health.
-  if (data.session) {
-    await markSessionActive(true);
-    redirect("/dashboard");
+  // The gate above should have prevented this. If the project flipped to
+  // auto-confirm between the check and signUp, revoke the session instead of
+  // letting an unverified account in.
+  const alreadyConfirmed = Boolean(data.user?.email_confirmed_at);
+
+  if (data.session || alreadyConfirmed) {
+    if (data.session) {
+      try {
+        await supabase.auth.signOut({ scope: "local" });
+      } catch (error) {
+        console.error("[auth] could not revoke unexpected signup session", error);
+      }
+    }
+
+    await clearSessionCookies();
+
+    return {
+      error:
+        "Sign-up could not be verified, so the account was not activated. Ask the operator to check Supabase's Confirm email setting.",
+      message: null,
+    };
   }
 
   return {

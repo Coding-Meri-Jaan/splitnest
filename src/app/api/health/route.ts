@@ -37,6 +37,7 @@ export async function GET() {
     signupEnabled: null as boolean | null,
     emailConfirmationRequired: null as boolean | null,
     googleEnabled: null as boolean | null,
+    emailSignupAllowed: null as boolean | null,
     passwordPolicy:
       "10+ characters with uppercase, lowercase, number, and symbol; common passwords blocked",
     tables: {} as Record<string, string>,
@@ -70,6 +71,7 @@ export async function GET() {
       report.emailConfirmationRequired = settings.mailer_autoconfirm === false;
       report.signupEnabled = settings.disable_signup !== true;
       report.googleEnabled = settings.external?.google === true;
+      report.emailSignupAllowed = settings.mailer_autoconfirm === false;
     }
   } catch {
     report.auth = "unreachable";
@@ -112,7 +114,11 @@ export async function GET() {
     );
   } else if (report.emailConfirmationRequired === false) {
     steps.push(
-      "Email confirmation is OFF, so any well-formed address can sign up. Turn on Authentication → Sign In / Providers → Email → Confirm email and connect custom SMTP to make the address check real.",
+      "Email confirmation is OFF, so email/password sign-up is blocked by the app (Google still works). Turn on Authentication → Sign In / Providers → Email → Confirm email and connect custom SMTP to make verified email sign-up work.",
+    );
+  } else if (report.auth === "ok") {
+    steps.push(
+      "Could not read the auth settings, so email/password sign-up is blocked. Check the project URL and anon key.",
     );
   }
   if (report.signupEnabled === false) {

@@ -9,7 +9,8 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "auth:configure": "node --env-file=.env.local scripts/configure-auth.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
