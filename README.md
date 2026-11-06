@@ -109,6 +109,26 @@ users, stores the SMTP credentials, and keeps `/auth/confirm` in the redirect
 allow-list. It never prints secrets. `AUTH_REDIRECT_URLS` is replaced as a
 whole, so include every URL you need if you override it.
 
+### Google-only setup (no SMTP yet)
+
+To unblock account creation with Google while email/SMTP is still being
+arranged:
+
+1. Create the OAuth client described in [Google sign-in](#google-sign-in).
+2. Fill `SUPABASE_ACCESS_TOKEN`, `AUTH_SITE_URL`, `GOOGLE_CLIENT_ID`, and
+   `GOOGLE_CLIENT_SECRET` in `.env.local`.
+3. Preview, then apply:
+
+```bash
+npm run auth:configure -- --google-only --dry-run
+npm run auth:configure -- --google-only
+```
+
+This enables the provider without touching email settings. Email/password
+signup stays blocked and `/api/health` keeps reporting
+`emailSignupAllowed: false` — that is expected in this mode. Run the normal
+mode later, once custom SMTP exists, to turn on verified email signup.
+
 ### Dashboard alternative
 
 1. **Authentication → Sign In / Providers → Email**: turn **Confirm email** on.
@@ -145,7 +165,9 @@ still log in.
    it is `https://<project-ref>.supabase.co/auth/v1/callback`):
    - `https://<project-ref>.supabase.co/auth/v1/callback`
 3. In Supabase, open **Authentication → Sign In / Providers → Google**, enable
-   it, and paste the Google **Client ID** and **Client Secret**.
+   it, and paste the Google **Client ID** and **Client Secret** — or set
+   `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` in `.env.local` and run
+   `npm run auth:configure -- --google-only`.
 4. Keep `<your-site>/auth/confirm` in Supabase's redirect allow-list. SplitNest
    sends Google back there with `prompt=select_account`, so the account chooser
    always appears.

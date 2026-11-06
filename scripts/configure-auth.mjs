@@ -1,21 +1,32 @@
 #!/usr/bin/env node
 /**
- * Configures Supabase Auth so email/password signup is actually verified.
+ * Configures Supabase Auth from this machine.
  *
- * This is the external half of the fake-email fix: the app refuses email
- * signups while the project auto-confirms addresses, so run this once with a
- * personal access token and SMTP credentials.
+ * The app refuses email/password signups while Supabase auto-confirms
+ * addresses, so the default mode also turns on Confirm email and installs
+ * custom SMTP — the only real fix for made-up addresses.
  *
  *   npm run auth:configure -- --dry-run
  *   npm run auth:configure
  *
+ * If you only want Google sign-in for now, run the Google-only mode. It leaves
+ * email/password signup blocked (the app gate stays closed) and just turns on
+ * the provider:
+ *
+ *   npm run auth:configure -- --google-only --dry-run
+ *   npm run auth:configure -- --google-only
+ *
  * Required values live in .env.local (gitignored):
  *   SUPABASE_ACCESS_TOKEN   https://supabase.com/dashboard/account/tokens
+ *   AUTH_SITE_URL           https://splitnest-payments.netlify.app
+ *   GOOGLE_CLIENT_ID        Google Cloud → Credentials → OAuth client
+ *   GOOGLE_CLIENT_SECRET
+ *
+ * Required for the default (email) mode, in addition to the above:
  *   AUTH_SMTP_HOST          e.g. smtp.sendgrid.net / smtp.brevo.com
  *   AUTH_SMTP_USER          SMTP username (SendGrid uses "apikey")
  *   AUTH_SMTP_PASS          SMTP password / API key
  *   AUTH_SMTP_FROM          verified sender address
- *   AUTH_SITE_URL           https://splitnest-payments.netlify.app
  *
  * Optional:
  *   SUPABASE_PROJECT_REF    derived from NEXT_PUBLIC_SUPABASE_URL when absent
@@ -23,10 +34,10 @@
  *   AUTH_SMTP_SENDER_NAME   default "SplitNest"
  *   AUTH_REDIRECT_URLS      comma-separated; defaults to <site>/auth/confirm
  *                           plus http://localhost:3000/auth/confirm
- *   GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET
  */
 
 const dryRun = process.argv.includes("--dry-run");
+const googleOnly = process.argv.includes("--google-only");
 
 function value(name) {
   const raw = process.env[name];
@@ -66,6 +77,8 @@ const senderName = value("AUTH_SMTP_SENDER_NAME") || "SplitNest";
 const googleClientId = value("GOOGLE_CLIENT_ID");
 const googleClientSecret = value("GOOGLE_CLIENT_SECRET");
 
+const googleConfigured = Boolean(googleClientId && googleClientSecret);
+
 if (!dryRun && !token) {
   fail(
     "SUPABASE_ACCESS_TOKEN is missing. Create one at https://supabase.com/dashboard/account/tokens.",
@@ -74,13 +87,16 @@ if (!dryRun && !token) {
 if (!siteUrl) {
   fail("AUTH_SITE_URL is missing (for example https://splitnest-payments.netlify.app).");
 }
-if (!smtpHost || !smtpUser || !smtpPass || !smtpFrom) {
-  fail(
-    "AUTH_SMTP_HOST, AUTH_SMTP_USER, AUTH_SMTP_PASS, and AUTH_SMTP_FROM are required. Connect an SMTP provider first (SendGrid, Brevo, Resend, Postmark, SES).",
-  );
+if (googleOnly && !googleConfigured) {
+  fail("Set both GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET for --google-only.");
 }
 if (Boolean(googleClientId) !== Boolean(googleClientSecret)) {
   fail("Set both GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET, or neither.");
+}
+if (!googleOnly && (!smtpHost || !smtpUser || !smtpPass || !smtpFrom)) {
+  fail(
+    "AUTH_SMTP_HOST, AUTH_SMTP_USER, AUTH_SMTP_PASS, and AUTH_SMTP_FROM are required. Connect an SMTP provider first (SendGrid, Brevo, Resend, Postmark, SES), or use --google-only.",
+  );
 }
 
 const redirects =
@@ -88,33 +104,41 @@ const redirects =
   [`${siteUrl}/auth/confirm`, "http://localhost:3000/auth/confirm"].join(",");
 
 const payload = {
-  // The two settings that make fake emails impossible through this app.
-  mailer_autoconfirm: false,
-  mailer_allow_unverified_email_sign_ins: false,
-  external_email_enabled: true,
-  mailer_secure_email_change_enabled: true,
-
-  smtp_host: smtpHost,
-  smtp_port: smtpPort,
-  smtp_user: smtpUser,
-  smtp_pass: smtpPass,
-  smtp_admin_email: smtpFrom,
-  smtp_sender_name: senderName,
-
   site_url: siteUrl,
   uri_allow_list: redirects,
 };
 
-if (googleClientId && googleClientSecret) {
+if (googleConfigured) {
   payload.external_google_enabled = true;
   payload.external_google_client_id = googleClientId;
   payload.external_google_secret = googleClientSecret;
 }
 
+if (!googleOnly) {
+  // The two settings that make fake emails impossible through this app.
+  payload.mailer_autoconfirm = false;
+  payload.mailer_allow_unverified_email_sign_ins = false;
+  payload.external_email_enabled = true;
+  payload.mailer_secure_email_change_enabled = true;
+
+  payload.smtp_host = smtpHost;
+  payload.smtp_port = smtpPort;
+  payload.smtp_user = smtpUser;
+  payload.smtp_pass = smtpPass;
+  payload.smtp_admin_email = smtpFrom;
+  payload.smtp_sender_name = senderName;
+}
+
 console.log(`\nProject: ${ref}`);
 console.log(`Site URL: ${siteUrl}`);
-console.log(`SMTP: ${smtpHost}:${smtpPort} as ${smtpUser}`);
-console.log(`Sender: ${senderName} <${smtpFrom}>`);
+console.log(`Mode: ${googleOnly ? "Google only" : "Google + verified email"}`);
+if (!googleOnly) {
+  console.log(`SMTP: ${smtpHost}:${smtpPort} as ${smtpUser}`);
+  console.log(`Sender: ${senderName} <${smtpFrom}>`);
+}
+if (googleConfigured) {
+  console.log(`Google client: ${googleClientId}`);
+}
 console.log(`Redirects: ${redirects}`);
 
 if (dryRun) {
@@ -123,7 +147,7 @@ if (dryRun) {
     JSON.stringify(
       {
         ...payload,
-        smtp_pass: "***",
+        smtp_pass: payload.smtp_pass ? "***" : undefined,
         external_google_secret: payload.external_google_secret
           ? "***"
           : undefined,
@@ -182,6 +206,13 @@ console.log(
     2,
   ),
 );
-console.log(
-  "\nNext: redeploy is not needed. Open /api/health and confirm emailSignupAllowed is true.\n",
-);
+
+if (googleOnly) {
+  console.log(
+    "\nGoogle sign-in is on. Email/password signup stays blocked by the app until Confirm email and SMTP are configured; /api/health keeps reporting emailSignupAllowed=false, which is correct for this mode.\n",
+  );
+} else {
+  console.log(
+    "\nNext: redeploy is not needed. Open /api/health and confirm emailSignupAllowed is true.\n",
+  );
+}
