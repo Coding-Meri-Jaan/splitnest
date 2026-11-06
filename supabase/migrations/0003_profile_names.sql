@@ -15,7 +15,11 @@ begin
   values (
     new.id,
     new.email,
-    coalesce(nullif(trim(new.raw_user_meta_data ->> 'full_name'), ''), '')
+    coalesce(
+      nullif(trim(new.raw_user_meta_data ->> 'full_name'), ''),
+      nullif(trim(new.raw_user_meta_data ->> 'name'), ''),
+      ''
+    )
   )
   on conflict (id) do nothing;
   return new;
@@ -23,8 +27,13 @@ end;
 $$;
 
 -- Repair existing rows: prefer the name captured at signup in auth metadata.
+-- Google stores its display name under `name`, not `full_name`.
 update public.profiles p
-set full_name = coalesce(nullif(trim(u.raw_user_meta_data ->> 'full_name'), ''), '')
+set full_name = coalesce(
+  nullif(trim(u.raw_user_meta_data ->> 'full_name'), ''),
+  nullif(trim(u.raw_user_meta_data ->> 'name'), ''),
+  ''
+)
 from auth.users u
 where u.id = p.id
   and (

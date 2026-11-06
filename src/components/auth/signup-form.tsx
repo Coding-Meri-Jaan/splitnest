@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useActionState } from "react";
 
 import { AuthMessage } from "@/components/auth/auth-message";
+import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
+import { PasswordRequirements } from "@/components/auth/password-requirements";
 import { SubmitButton } from "@/components/auth/submit-button";
 import {
   Card,
@@ -15,6 +17,10 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { signupAction } from "@/lib/auth/actions";
+import {
+  MAX_PASSWORD_LENGTH,
+  MIN_PASSWORD_LENGTH,
+} from "@/lib/auth/password";
 import { initialAuthState } from "@/lib/auth/types";
 
 export function SignupForm() {
@@ -29,12 +35,28 @@ export function SignupForm() {
         <CardDescription>Free to start, no card needed.</CardDescription>
       </CardHeader>
 
-      <form action={formAction}>
-        <CardContent className="space-y-4">
+      {confirmed ? (
+        <CardContent>
           <AuthMessage error={state.error} message={state.message} />
+        </CardContent>
+      ) : (
+        <>
+          <CardContent className="pb-0">
+            <GoogleSignInButton next="/dashboard" remember />
+          </CardContent>
 
-          {confirmed ? null : (
-            <>
+          <div className="my-4 flex items-center gap-3 px-6">
+            <span className="h-px flex-1 bg-border" />
+            <span className="text-xs uppercase tracking-wide text-muted-foreground">
+              or
+            </span>
+            <span className="h-px flex-1 bg-border" />
+          </div>
+
+          <form action={formAction}>
+            <CardContent className="space-y-4">
+              <AuthMessage error={state.error} message={state.message} />
+
               <div className="space-y-2">
                 <label htmlFor="fullName" className="text-sm font-medium">
                   Full name
@@ -44,6 +66,7 @@ export function SignupForm() {
                   name="fullName"
                   autoComplete="name"
                   placeholder="Ananya Sharma"
+                  maxLength={80}
                   required
                 />
               </div>
@@ -71,10 +94,12 @@ export function SignupForm() {
                   name="password"
                   type="password"
                   autoComplete="new-password"
-                  placeholder="At least 8 characters"
-                  minLength={8}
+                  placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
+                  minLength={MIN_PASSWORD_LENGTH}
+                  maxLength={MAX_PASSWORD_LENGTH}
                   required
                 />
+                <PasswordRequirements />
               </div>
 
               <div className="space-y-2">
@@ -86,26 +111,33 @@ export function SignupForm() {
                   name="confirmPassword"
                   type="password"
                   autoComplete="new-password"
-                  minLength={8}
+                  minLength={MIN_PASSWORD_LENGTH}
+                  maxLength={MAX_PASSWORD_LENGTH}
                   required
                 />
               </div>
-            </>
-          )}
-        </CardContent>
+            </CardContent>
 
-        <CardFooter className="mt-6 flex flex-col gap-3">
-          {confirmed ? null : (
-            <SubmitButton pendingLabel="Creating account…">Create account</SubmitButton>
-          )}
-          <p className="text-center text-sm text-muted-foreground">
-            Already have an account?{" "}
-            <Link href="/login" className="font-medium text-foreground underline-offset-4 hover:underline">
-              Log in
-            </Link>
-          </p>
-        </CardFooter>
-      </form>
+            <CardFooter className="mt-6">
+              <SubmitButton pendingLabel="Creating account…">
+                Create account
+              </SubmitButton>
+            </CardFooter>
+          </form>
+        </>
+      )}
+
+      <CardFooter className="flex flex-col gap-3 border-t pt-6">
+        <p className="text-center text-sm text-muted-foreground">
+          Already have an account?{" "}
+          <Link
+            href="/login"
+            className="font-medium text-foreground underline-offset-4 hover:underline"
+          >
+            Log in
+          </Link>
+        </p>
+      </CardFooter>
     </Card>
   );
 }

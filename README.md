@@ -57,9 +57,14 @@ Then fill in `.env.local`:
 | `NEXT_PUBLIC_SUPABASE_URL`      | Project Settings → API → Project URL          |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Project Settings → API → anon/public key      |
 | `NEXT_PUBLIC_SITE_URL`          | `http://localhost:3000` locally               |
+| `AUTH_EMAIL_DNS_CHECK`          | Optional; set `off` to skip the DNS lookup    |
 
 The anon key is safe to expose: Row Level Security decides what each signed-in
 user can read or write. Never put the `service_role` key in this app.
+
+After deploying, open `/api/health`. It reports whether Supabase is configured,
+which migrations are missing, whether email confirmation and Google sign-in are
+enabled, and the active password policy — without exposing keys or user data.
 
 ## 3. Configure Supabase Auth
 
@@ -70,22 +75,81 @@ In **Authentication → URL Configuration**:
   - `http://localhost:3000/auth/confirm`
   - `https://<your-site>.netlify.app/auth/confirm`
 
-Email + password is enabled by default. Keeping **Confirm email** on means new
-users must click the emailed link before signing in.
+Email + password is enabled by default. **Keep Confirm email on** — it is the
+only real defence against made-up addresses. SplitNest also validates the
+address before calling Supabase (format, placeholder local parts, disposable
+domains, reserved TLDs) and does a best-effort DNS MX/A lookup, but none of
+those can prove an inbox exists. Only a delivered confirmation link can.
 
-> **Hitting "email rate limit exceeded"?** Supabase's built-in email service
-> only sends a handful of messages per hour, and it is not meant for
-> production. For demos and testing, either turn **Confirm email** off under
-> **Authentication → Sign In / Providers → Email**, or confirm users manually
-> from **Authentication → Users**. For real traffic, connect your own SMTP
-> provider (Resend, Brevo, Postmark) under **Authentication → Emails → SMTP
-> Settings**.
+### Email delivery (required for confirmation)
 
-> **Emails never arrive?** The built-in mailer only delivers to addresses that
-> belong to your organization's team (Organization → Team) and is capped at 2
-> messages per hour. Configure custom SMTP to reach everyone. Supabase applies a
-> default limit of 30 messages per hour to custom SMTP; raise it under
-> **Authentication → Rate Limits** once your sending reputation is established.
+Supabase's built-in mailer is a demo service: it only delivers to addresses on
+your organization's team and is capped at a couple of messages per hour.
+
+- For **real users**, connect custom SMTP under **Authentication → Emails →
+  SMTP Settings** (Resend, Brevo, Postmark, etc.).
+- For **local testing**, either turn **Confirm email** off under
+  **Authentication → Sign In / Providers → Email**, or add users manually from
+  **Authentication → Users** with **Auto Confirm User** enabled.
+
+> **Hitting "email rate limit exceeded"?** Supabase's built-in sender hit its
+> cap. Wait about an hour, or configure custom SMTP. The app shows a hint that
+> points here.
+>
+> **Emails never arrive?** That is almost always the built-in mailer. Custom
+> SMTP reaches everyone. Supabase applies a default limit of 30 messages per
+> hour to custom SMTP; raise it under **Authentication → Rate Limits** once your
+> sending reputation is established.
+>
+> **Link expired or lost?** Trying to log in with an unconfirmed address shows a
+> **Resend confirmation email** button right on the login screen, so nobody gets
+> locked out while waiting for a new link.
+
+### Google sign-in
+
+1. Create an OAuth client in the [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+   (type **Web application**).
+2. Add these **Authorized redirect URIs** (copy the callback shown by Supabase,
+   it is `https://<project-ref>.supabase.co/auth/v1/callback`):
+   - `https://<project-ref>.supabase.co/auth/v1/callback`
+3. In Supabase, open **Authentication → Sign In / Providers → Google**, enable
+   it, and paste the Google **Client ID** and **Client Secret**.
+4. Keep `<your-site>/auth/confirm` in Supabase's redirect allow-list. SplitNest
+   sends Google back there with `prompt=select_account`, so the account chooser
+   always appears.
+
+Until the provider is enabled, the Google button is visible but returns a clear
+"not enabled yet" message. `/api/health` reports whether Google is on.
+
+### Password policy
+
+Signup and password reset enforce, in `src/lib/auth/password.ts`:
+
+- 10–72 characters (72 is bcrypt's limit, so nothing is silently truncated)
+- at least one uppercase letter, one lowercase letter, one number, one symbol
+- a short blocklist of common passwords and the app name
+- no part of the person's name or email handle
+
+Supabase's own **leaked password protection** should also be enabled under
+**Authentication → Sign In / Providers → Email** for broader coverage.
+
+### Sessions
+
+SplitNest uses Supabase Auth cookies (`@supabase/ssr`) plus two tiny, non-secret
+markers (`sn-activity`, `sn-remember`). The proxy refreshes the token on every
+matched request and enforces inactivity:
+
+| Choice at sign-in | Cookie lifetime          | Idle timeout |
+| ----------------- | ------------------------ | ------------ |
+| **Keep me signed in** | 30 days               | 14 days      |
+| Unchecked         | Browser session only     | 12 hours     |
+
+- **Sign out** in the topbar ends the session on this device (`scope: local`).
+- **Settings → Security → Sign out everywhere** revokes refresh tokens on every
+  device (`scope: global`).
+- Opening `/login` while signed in does **not** silently skip the form: it shows
+  who you are signed in as, with **Continue**, **Verify email**, and **Use
+  another account** options.
 
 ## 4. Run it
 
@@ -164,8 +228,8 @@ Open <http://localhost:3000>, sign up, confirm the email, then create a group.
 ```
 src/
 ├─ app/
-│  ├─ (auth)/                  # login, signup, forgot/reset password
-│  ├─ auth/confirm/route.ts    # exchanges email link for a session
+│  ├─ (auth)/                  # login, signup, verify email, forgot/reset password
+│  ├─ auth/confirm/route.ts    # exchanges email/OAuth link for a session
 │  ├─ dashboard/
 │  │  ├─ group detail, new group, new expense, settle up, settings
 │  │  ├─ activity/, people/
@@ -180,7 +244,7 @@ src/
 │  └─ ui/                      # shadcn/ui primitives
 ├─ data/sample-data.ts         # landing-page demo numbers only
 ├─ lib/
-│  ├─ auth/                    # server actions, session user, site URL
+│  ├─ auth/                    # actions, password/email/session policy, user
 │  ├─ data/                    # read queries + server actions
 │  ├─ supabase/                # browser/server clients, proxy refresh
 │  ├─ money.ts + money.test.ts # paise parsing, splits, balances
@@ -203,22 +267,40 @@ supabase/migrations/           # SQL schema, RLS, functions
 
 ## Manual test checklist
 
-1. Sign up → confirm email → land on `/dashboard`.
-2. Create a group; you appear as **Owner**.
-3. Add a second account by email (they must have signed up first).
-4. Add an expense split equally between everyone; check the per-person share.
-5. Add a ₹0.03 expense between 2 people — shares must be ₹0.02 / ₹0.01.
-6. Record a settlement; balances and suggested transfers update.
-7. Add a UPI id in **Settings**, then use **Pay via UPI** on a suggested
+### Auth and sessions
+
+1. Sign up with a fake-looking address (`test@example.com`, `you@mailinator.com`)
+   — it should be rejected with a clear message.
+2. Sign up with a weak password (`password123`); the requirement list and the
+   error should explain what is missing.
+3. Sign up with a real address, confirm the email, and land on `/dashboard`.
+4. Visit `/login` while signed in; you should see the account chooser, not an
+   automatic redirect. **Use another account** signs you out on the device.
+5. Sign in with **Keep me signed in** checked, close the browser, reopen it —
+   you should still be signed in.
+6. Sign in with it unchecked; closing the browser should end the session.
+7. Open **Settings → Security**; check provider, last sign-in, and
+   **Sign out everywhere**.
+8. Click **Continue with Google** from login and signup; the Google account
+   chooser appears and you return to `/dashboard`.
+
+### Groups and expenses
+
+1. Create a group; you appear as **Owner**.
+2. Add a second account by email (they must have signed up first).
+3. Add an expense split equally between everyone; check the per-person share.
+4. Add a ₹0.03 expense between 2 people — shares must be ₹0.02 / ₹0.01.
+5. Record a settlement; balances and suggested transfers update.
+6. Add a UPI id in **Settings**, then use **Pay via UPI** on a suggested
    transfer.
-8. Try opening another user's group id directly — you should get a 404.
-9. As the owner, rename the group in **Group settings**; the new name appears
+7. Try opening another user's group id directly — you should get a 404.
+8. As the owner, rename the group in **Group settings**; the new name appears
    everywhere.
-10. Edit an expense you created; the amount, title, and shares update.
-11. Record a settlement, then delete it; balances and suggested transfers return
+9. Edit an expense you created; the amount, title, and shares update.
+10. Record a settlement, then delete it; balances and suggested transfers return
     to their previous values.
-12. Remove a member with no activity, then add them back by email.
-13. As a member, try to leave a group where you have expenses — it should be
+11. Remove a member with no activity, then add them back by email.
+12. As a member, try to leave a group where you have expenses — it should be
     blocked with a clear message. Delete your expense, then leave.
-14. As the owner, delete the group; it and its expenses disappear from
+13. As the owner, delete the group; it and its expenses disappear from
     **Groups**.

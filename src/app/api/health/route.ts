@@ -36,6 +36,9 @@ export async function GET() {
     auth: "skipped" as string,
     signupEnabled: null as boolean | null,
     emailConfirmationRequired: null as boolean | null,
+    googleEnabled: null as boolean | null,
+    passwordPolicy:
+      "10+ characters with uppercase, lowercase, number, and symbol; common passwords blocked",
     tables: {} as Record<string, string>,
     nextStep: "",
   };
@@ -62,9 +65,11 @@ export async function GET() {
       const settings = (await authResponse.json()) as {
         mailer_autoconfirm?: boolean;
         disable_signup?: boolean;
+        external?: Record<string, boolean>;
       };
       report.emailConfirmationRequired = settings.mailer_autoconfirm === false;
       report.signupEnabled = settings.disable_signup !== true;
+      report.googleEnabled = settings.external?.google === true;
     }
   } catch {
     report.auth = "unreachable";
@@ -103,15 +108,24 @@ export async function GET() {
   }
   if (report.emailConfirmationRequired) {
     steps.push(
-      "Email confirmation is ON, so each signup needs an email click and Supabase's built-in sender is rate-limited. For demos turn off Authentication → Sign In / Providers → Email → Confirm email, or confirm users manually in Authentication → Users.",
+      "Email confirmation is ON. Make sure custom SMTP is configured, otherwise Supabase's built-in sender only reaches organization team addresses and is rate-limited.",
+    );
+  } else if (report.emailConfirmationRequired === false) {
+    steps.push(
+      "Email confirmation is OFF, so any well-formed address can sign up. Turn on Authentication → Sign In / Providers → Email → Confirm email and connect custom SMTP to make the address check real.",
     );
   }
   if (report.signupEnabled === false) {
     steps.push("Email signups are disabled in Authentication → Sign In / Providers.");
   }
+  if (report.googleEnabled === false) {
+    steps.push(
+      "Google sign-in is off. Add a Google OAuth client under Authentication → Sign In / Providers → Google and allow <your-site>/auth/confirm as a redirect URL.",
+    );
+  }
   if (missing.length > 0) {
     steps.push(
-      `Run supabase/migrations/0001_init.sql then 0002_expenses_and_invites.sql in the Supabase SQL editor (missing: ${missing.join(", ")}).`,
+      `Run supabase/migrations/0001_init.sql, 0002_expenses_and_invites.sql, then 0003_profile_names.sql in the Supabase SQL editor (missing: ${missing.join(", ")}).`,
     );
   }
 

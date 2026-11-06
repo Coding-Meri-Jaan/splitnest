@@ -12,7 +12,7 @@ describe("describeAuthError", () => {
     );
 
     expect(message).toMatch(/not confirmed/i);
-    expect(message).toMatch(/Authentication → Users/);
+    expect(message).toMatch(/confirmation link/i);
   });
 
   it("explains the built-in email rate limit", () => {
@@ -21,8 +21,8 @@ describe("describeAuthError", () => {
       "Could not create your account.",
     );
 
-    expect(message).toMatch(/hourly limit/i);
-    expect(message).toMatch(/Confirm email/);
+    expect(message).toMatch(/rate limit/i);
+    expect(message).toMatch(/SMTP/i);
   });
 
   it("keeps the fallback for invalid credentials", () => {

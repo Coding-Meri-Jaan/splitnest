@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState } from "react";
 
 import { AuthMessage } from "@/components/auth/auth-message";
+import { PasswordRequirements } from "@/components/auth/password-requirements";
 import { SubmitButton } from "@/components/auth/submit-button";
 import {
   Card,
@@ -15,6 +16,10 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { updatePasswordAction } from "@/lib/auth/actions";
+import {
+  MAX_PASSWORD_LENGTH,
+  MIN_PASSWORD_LENGTH,
+} from "@/lib/auth/password";
 import { initialAuthState } from "@/lib/auth/types";
 
 export function ResetPasswordForm() {
@@ -40,10 +45,12 @@ export function ResetPasswordForm() {
               name="password"
               type="password"
               autoComplete="new-password"
-              placeholder="At least 8 characters"
-              minLength={8}
+              placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
+              minLength={MIN_PASSWORD_LENGTH}
+              maxLength={MAX_PASSWORD_LENGTH}
               required
             />
+            <PasswordRequirements />
           </div>
 
           <div className="space-y-2">
@@ -55,7 +62,8 @@ export function ResetPasswordForm() {
               name="confirmPassword"
               type="password"
               autoComplete="new-password"
-              minLength={8}
+              minLength={MIN_PASSWORD_LENGTH}
+              maxLength={MAX_PASSWORD_LENGTH}
               required
             />
           </div>
