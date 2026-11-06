@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { redirect } from "next/navigation";
+import { io } from "next/cache";
 
 import { isEmailHandle } from "@/lib/display-name";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
@@ -28,6 +29,13 @@ export const getCurrentUser = cache(async (): Promise<SessionUser> => {
   if (!isSupabaseConfigured()) {
     redirect("/login");
   }
+
+  // Mark this as request-time work before touching the session. Supabase
+  // refreshes auth cookies while reading the user, and writing a cookie reads
+  // the clock. During prerendering that read is flagged as unstable, which
+  // would otherwise abort the render and leave the page stuck on its
+  // Suspense fallback.
+  await io();
 
   const supabase = await createSupabaseServerClient();
   const {

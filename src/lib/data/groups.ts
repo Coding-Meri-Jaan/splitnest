@@ -13,6 +13,7 @@ import type {
   GroupDetail,
   GroupView,
   Person,
+  SettlementView,
   TransferView,
 } from "@/types";
 
@@ -221,7 +222,7 @@ function buildGroups(ledger: Ledger, userId: string): GroupView[] {
 function buildExpenseViews(ledger: Ledger): ExpenseView[] {
   const people = memberMap(ledger);
   const groupNames = new Map(ledger.groups.map((group) => [group.id, group.name]));
-  const splitCounts = groupBy(ledger.splits, (split) => split.expense_id);
+  const splitsByExpense = groupBy(ledger.splits, (split) => split.expense_id);
 
   return ledger.expenses.map((expense) => ({
     id: expense.id,
@@ -233,7 +234,28 @@ function buildExpenseViews(ledger: Ledger): ExpenseView[] {
     paidByName: people.get(expense.paid_by)?.name ?? "Member",
     date: expense.spent_at,
     category: expense.category,
-    splitCount: (splitCounts.get(expense.id) ?? []).length,
+    notes: expense.notes,
+    createdById: expense.created_by,
+    splitUserIds: (splitsByExpense.get(expense.id) ?? []).map((split) => split.user_id),
+    splitCount: (splitsByExpense.get(expense.id) ?? []).length,
+  }));
+}
+
+function buildSettlementViews(ledger: Ledger): SettlementView[] {
+  const people = memberMap(ledger);
+
+  return ledger.settlements.map((settlement) => ({
+    id: settlement.id,
+    groupId: settlement.group_id,
+    fromUserId: settlement.from_user,
+    fromName: people.get(settlement.from_user)?.name ?? "Member",
+    toUserId: settlement.to_user,
+    toName: people.get(settlement.to_user)?.name ?? "Member",
+    amount: toRupees(settlement.amount_paise),
+    method: settlement.method,
+    note: settlement.note,
+    date: settlement.settled_at,
+    createdById: settlement.created_by,
   }));
 }
 
@@ -337,6 +359,9 @@ export async function getGroupDetail(
     .sort((a, b) => b.amount - a.amount);
 
   const expenses = buildExpenseViews(ledger);
+  const settlements = buildSettlementViews(ledger).filter(
+    (settlement) => settlement.groupId === groupId,
+  );
   const totalSpent = ledger.expenses
     .filter((expense) => expense.group_id === groupId)
     .reduce((sum, expense) => sum + expense.amount_paise, 0);
@@ -344,6 +369,7 @@ export async function getGroupDetail(
   return {
     group,
     expenses,
+    settlements,
     balances,
     suggestedTransfers,
     totalSpent: toRupees(totalSpent),

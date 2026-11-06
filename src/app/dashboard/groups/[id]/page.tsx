@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { ArrowLeftIcon, PlusIcon, ReceiptTextIcon, ScaleIcon, SmartphoneIcon } from "lucide-react";
+import { ArrowLeftIcon, PlusIcon, ReceiptTextIcon, ScaleIcon, SettingsIcon, SmartphoneIcon } from "lucide-react";
 
 import { AddMemberForm } from "@/components/dashboard/add-member-form";
 import { BalanceList } from "@/components/dashboard/balance-list";
 import { ExpenseTable } from "@/components/dashboard/expense-table";
+import { SettlementList } from "@/components/dashboard/settlement-list";
 import { Amount } from "@/components/shared/amount";
 import { MemberAvatar } from "@/components/shared/member-avatar";
 import { PageHeader } from "@/components/shared/page-header";
@@ -30,7 +31,12 @@ export const metadata: Metadata = {
 
 interface GroupPageProps {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ added?: string; settled?: string }>;
+  searchParams: Promise<{
+    added?: string;
+    settled?: string;
+    updated?: string;
+    deleted?: string;
+  }>;
 }
 
 export default function GroupPage({ params, searchParams }: GroupPageProps) {
@@ -50,17 +56,29 @@ async function GroupContent({ params, searchParams }: GroupPageProps) {
     notFound();
   }
 
-  const { group, expenses, balances, suggestedTransfers, totalSpent } = detail;
+  const { group, expenses, settlements, balances, suggestedTransfers, totalSpent } = detail;
+  const isOwner = group.creatorId === user.id;
   const confirmation =
     query.settled === "1"
       ? "Settlement recorded."
       : query.added === "1"
         ? "Expense added."
-        : null;
+        : query.updated === "1"
+          ? "Expense updated."
+          : query.deleted === "expense"
+            ? "Expense deleted."
+            : query.deleted === "settlement"
+              ? "Settlement deleted."
+              : null;
 
   return (
     <div className="space-y-6">
-      <Button variant="ghost" size="sm" render={<Link href="/dashboard/groups" />}>
+      <Button
+        variant="ghost"
+        size="sm"
+        nativeButton={false}
+        render={<Link href="/dashboard/groups" />}
+      >
         <ArrowLeftIcon />
         All groups
       </Button>
@@ -79,11 +97,26 @@ async function GroupContent({ params, searchParams }: GroupPageProps) {
         description={`${group.memberCount} members · ${formatINR(totalSpent)} spent so far`}
         action={
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" render={<Link href={`/dashboard/groups/${group.id}/settle`} />}>
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<Link href={`/dashboard/groups/${group.id}/settings`} />}
+            >
+              <SettingsIcon />
+              Settings
+            </Button>
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<Link href={`/dashboard/groups/${group.id}/settle`} />}
+            >
               <ScaleIcon />
               Settle up
             </Button>
-            <Button render={<Link href={`/dashboard/groups/${group.id}/expenses/new`} />}>
+            <Button
+              nativeButton={false}
+              render={<Link href={`/dashboard/groups/${group.id}/expenses/new`} />}
+            >
               <PlusIcon />
               Add expense
             </Button>
@@ -92,18 +125,37 @@ async function GroupContent({ params, searchParams }: GroupPageProps) {
       />
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Expenses</CardTitle>
-            <CardDescription>Everything logged in this nest.</CardDescription>
-          </CardHeader>
-          <ExpenseTable
-            expenses={expenses}
-            showGroup={false}
-            showDelete
-            emptyMessage="No expenses yet. Add the first one."
-          />
-        </Card>
+        <div className="space-y-6 lg:col-span-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Expenses</CardTitle>
+              <CardDescription>Everything logged in this nest.</CardDescription>
+            </CardHeader>
+            <ExpenseTable
+              expenses={expenses}
+              showGroup={false}
+              showEdit
+              showDelete
+              currentUserId={user.id}
+              isGroupOwner={isOwner}
+              emptyMessage="No expenses yet. Add the first one."
+            />
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Settlements</CardTitle>
+              <CardDescription>Payments already recorded outside SplitNest.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <SettlementList
+                settlements={settlements}
+                currentUserId={user.id}
+                isGroupOwner={isOwner}
+              />
+            </CardContent>
+          </Card>
+        </div>
 
         <div className="space-y-6">
           <Card>
@@ -143,7 +195,13 @@ async function GroupContent({ params, searchParams }: GroupPageProps) {
                   </li>
                 ))}
               </ul>
-              <AddMemberForm groupId={group.id} />
+              {isOwner ? (
+                <AddMemberForm groupId={group.id} />
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Only the group owner can add people.
+                </p>
+              )}
             </CardContent>
           </Card>
 
@@ -184,6 +242,7 @@ async function GroupContent({ params, searchParams }: GroupPageProps) {
                           <Button
                             variant="outline"
                             size="sm"
+                            nativeButton={false}
                             render={<a href={upiUri} />}
                           >
                             <SmartphoneIcon />

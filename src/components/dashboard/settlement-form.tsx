@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 
 import { SubmitButton } from "@/components/auth/submit-button";
 import { FormMessage } from "@/components/shared/form-message";
@@ -17,8 +17,17 @@ interface SettlementFormProps {
 
 export function SettlementForm({ groupId, members, currentUserId }: SettlementFormProps) {
   const [state, formAction] = useActionState(recordSettlementAction, initialFormState);
-  const today = new Date().toISOString().slice(0, 10);
+  const settledAtRef = useRef<HTMLInputElement>(null);
   const otherMember = members.find((member) => member.id !== currentUserId)?.id ?? "";
+
+  // Reading the clock during render is not allowed while prerendering. Fill
+  // today's date directly on the input after hydration.
+  useEffect(() => {
+    const input = settledAtRef.current;
+    if (input && !input.value) {
+      input.value = new Date().toISOString().slice(0, 10);
+    }
+  }, []);
 
   return (
     <form action={formAction} className="space-y-4">
@@ -73,7 +82,7 @@ export function SettlementForm({ groupId, members, currentUserId }: SettlementFo
           <label htmlFor="settledAt" className="text-sm font-medium">
             Date
           </label>
-          <Input id="settledAt" name="settledAt" type="date" defaultValue={today} />
+          <Input ref={settledAtRef} id="settledAt" name="settledAt" type="date" />
         </div>
 
         <div className="space-y-2">

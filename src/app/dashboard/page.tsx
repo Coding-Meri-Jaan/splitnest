@@ -43,7 +43,7 @@ async function Overview() {
         title={firstName ? `Welcome back, ${firstName}` : "Welcome back"}
         description="Here is where things stand across your groups."
         action={
-          <Button render={<Link href="/dashboard/groups" />}>
+          <Button nativeButton={false} render={<Link href="/dashboard/groups" />}>
             <PlusIcon />
             New expense
           </Button>
@@ -56,7 +56,12 @@ async function Overview() {
             Add your name so friends see <strong>you</strong> in &ldquo;Paid by&rdquo; instead of a
             placeholder.
           </p>
-          <Button variant="outline" size="sm" render={<Link href="/dashboard/settings" />}>
+          <Button
+            variant="outline"
+            size="sm"
+            nativeButton={false}
+            render={<Link href="/dashboard/settings" />}
+          >
             Add your name
           </Button>
         </div>

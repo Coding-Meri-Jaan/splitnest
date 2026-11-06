@@ -13,7 +13,12 @@ export const metadata: Metadata = {
 export default function NewGroupPage() {
   return (
     <div className="mx-auto max-w-xl space-y-6">
-      <Button variant="ghost" size="sm" render={<Link href="/dashboard/groups" />}>
+      <Button
+        variant="ghost"
+        size="sm"
+        nativeButton={false}
+        render={<Link href="/dashboard/groups" />}
+      >
         <ArrowLeftIcon />
         Back to groups
       </Button>

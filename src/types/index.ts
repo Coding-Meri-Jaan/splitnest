@@ -43,7 +43,25 @@ export interface ExpenseView {
   paidByName: string;
   date: string;
   category: CategoryId;
+  notes: string | null;
+  createdById: string;
+  /** Everyone sharing this expense. */
+  splitUserIds: string[];
   splitCount: number;
+}
+
+export interface SettlementView {
+  id: string;
+  groupId: string;
+  fromUserId: string;
+  fromName: string;
+  toUserId: string;
+  toName: string;
+  amount: number;
+  method: "upi" | "cash" | "bank_transfer" | "other";
+  note: string | null;
+  date: string;
+  createdById: string;
 }
 
 export interface BalanceView {
@@ -85,6 +103,7 @@ export interface ActivityItem {
 export interface GroupDetail {
   group: GroupView;
   expenses: ExpenseView[];
+  settlements: SettlementView[];
   balances: BalanceView[];
   suggestedTransfers: TransferView[];
   totalSpent: number;

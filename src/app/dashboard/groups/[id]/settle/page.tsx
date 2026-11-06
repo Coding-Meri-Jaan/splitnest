@@ -33,7 +33,12 @@ async function SettleContent({ params }: SettlePageProps) {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <Button variant="ghost" size="sm" render={<Link href={`/dashboard/groups/${id}`} />}>
+      <Button
+        variant="ghost"
+        size="sm"
+        nativeButton={false}
+        render={<Link href={`/dashboard/groups/${id}`} />}
+      >
         <ArrowLeftIcon />
         {detail.group.name}
       </Button>

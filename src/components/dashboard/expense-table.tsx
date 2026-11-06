@@ -1,6 +1,8 @@
-import { Trash2Icon } from "lucide-react";
+import Link from "next/link";
+import { PencilIcon, Trash2Icon } from "lucide-react";
 
 import { Amount } from "@/components/shared/amount";
+import { ConfirmSubmitButton } from "@/components/shared/confirm-submit-button";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -18,7 +20,10 @@ import type { ExpenseView } from "@/types";
 interface ExpenseTableProps {
   expenses: ExpenseView[];
   showGroup?: boolean;
+  showEdit?: boolean;
   showDelete?: boolean;
+  currentUserId?: string;
+  isGroupOwner?: boolean;
   className?: string;
   emptyMessage?: string;
 }
@@ -26,7 +31,10 @@ interface ExpenseTableProps {
 export function ExpenseTable({
   expenses,
   showGroup = true,
+  showEdit = false,
   showDelete = false,
+  currentUserId,
+  isGroupOwner = false,
   className,
   emptyMessage = "No expenses yet. Add the first one.",
 }: ExpenseTableProps) {
@@ -38,6 +46,8 @@ export function ExpenseTable({
     );
   }
 
+  const showActions = showEdit || showDelete;
+
   return (
     <Table className={className}>
       <TableHeader>
@@ -46,13 +56,17 @@ export function ExpenseTable({
           {showGroup ? <TableHead>Group</TableHead> : null}
           <TableHead>Paid by</TableHead>
           <TableHead className="text-right">Amount</TableHead>
-          {showDelete ? <TableHead className="w-10" /> : null}
+          {showActions ? <TableHead className="w-20" /> : null}
         </TableRow>
       </TableHeader>
       <TableBody>
         {expenses.map((expense) => {
           const category = getCategoryMeta(expense.category);
           const CategoryIcon = category.icon;
+          const canEdit = showEdit && expense.createdById === currentUserId;
+          const canDelete =
+            showDelete &&
+            (expense.createdById === currentUserId || isGroupOwner);
 
           return (
             <TableRow key={expense.id}>
@@ -80,20 +94,39 @@ export function ExpenseTable({
               <TableCell className="text-right">
                 <Amount value={expense.amount} signed={false} />
               </TableCell>
-              {showDelete ? (
+              {showActions ? (
                 <TableCell className="text-right">
-                  <form action={deleteExpenseAction}>
-                    <input type="hidden" name="expenseId" value={expense.id} />
-                    <input type="hidden" name="groupId" value={expense.groupId} />
-                    <Button
-                      type="submit"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label={`Delete ${expense.title}`}
-                    >
-                      <Trash2Icon />
-                    </Button>
-                  </form>
+                  <div className="flex justify-end gap-1">
+                    {canEdit ? (
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        nativeButton={false}
+                        aria-label={`Edit ${expense.title}`}
+                        render={
+                          <Link
+                            href={`/dashboard/groups/${expense.groupId}/expenses/${expense.id}/edit`}
+                          />
+                        }
+                      >
+                        <PencilIcon />
+                      </Button>
+                    ) : null}
+                    {canDelete ? (
+                      <form action={deleteExpenseAction}>
+                        <input type="hidden" name="expenseId" value={expense.id} />
+                        <input type="hidden" name="groupId" value={expense.groupId} />
+                        <ConfirmSubmitButton
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Delete ${expense.title}`}
+                          confirmMessage={`Delete "${expense.title}"? This cannot be undone.`}
+                        >
+                          <Trash2Icon />
+                        </ConfirmSubmitButton>
+                      </form>
+                    ) : null}
+                  </div>
                 </TableCell>
               ) : null}
             </TableRow>
@@ -103,3 +136,4 @@ export function ExpenseTable({
     </Table>
   );
 }
+

@@ -38,7 +38,82 @@ function revalidateGroup(groupId: string) {
   revalidatePath("/dashboard/activity");
   revalidatePath("/dashboard/people");
   revalidatePath(`/dashboard/groups/${groupId}`);
+  revalidatePath(`/dashboard/groups/${groupId}/settings`);
 }
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isUuid(value: string): boolean {
+  return UUID_PATTERN.test(value);
+}
+
+type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
+
+async function membershipRole(
+  supabase: SupabaseServerClient,
+  groupId: string,
+  userId: string,
+): Promise<"owner" | "member" | null> {
+  const { data } = await supabase
+    .from("group_members")
+    .select("role")
+    .eq("group_id", groupId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  return data?.role ?? null;
+}
+
+/**
+ * Whether a member appears anywhere in this group's ledger. Removing someone
+ * who paid, owes, or settled would leave rows that point at a non-member, so
+ * the group owner has to clear those records first.
+ */
+async function memberHasActivity(
+  supabase: SupabaseServerClient,
+  groupId: string,
+  memberId: string,
+): Promise<boolean> {
+  const { data: expenses } = await supabase
+    .from("expenses")
+    .select("id, paid_by, created_by")
+    .eq("group_id", groupId);
+
+  const rows = expenses ?? [];
+  if (rows.some((row) => row.paid_by === memberId || row.created_by === memberId)) {
+    return true;
+  }
+
+  if (rows.length > 0) {
+    const { count } = await supabase
+      .from("expense_splits")
+      .select("expense_id", { count: "exact", head: true })
+      .eq("user_id", memberId)
+      .in(
+        "expense_id",
+        rows.map((row) => row.id),
+      );
+
+    if ((count ?? 0) > 0) return true;
+  }
+
+  const [paid, received] = await Promise.all([
+    supabase
+      .from("settlements")
+      .select("id", { count: "exact", head: true })
+      .eq("group_id", groupId)
+      .eq("from_user", memberId),
+    supabase
+      .from("settlements")
+      .select("id", { count: "exact", head: true })
+      .eq("group_id", groupId)
+      .eq("to_user", memberId),
+  ]);
+
+  return (paid.count ?? 0) + (received.count ?? 0) > 0;
+}
+
 
 export async function createGroupAction(
   _previous: FormState,
@@ -70,6 +145,76 @@ export async function createGroupAction(
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/groups");
   redirect(`/dashboard/groups/${groupId}`);
+}
+
+export async function updateGroupAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const user = await getCurrentUser();
+  const groupId = text(formData, "groupId");
+  const name = text(formData, "name");
+  const emoji = text(formData, "emoji") || "🏠";
+
+  if (!isUuid(groupId)) {
+    return { error: "That group could not be found.", message: null };
+  }
+  if (name.length === 0 || name.length > 80) {
+    return { error: "Give the group a name (up to 80 characters).", message: null };
+  }
+  if (emoji.length > 16) {
+    return { error: "Pick a shorter emoji.", message: null };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const role = await membershipRole(supabase, groupId, user.id);
+
+  if (role !== "owner") {
+    return { error: "Only the group owner can rename this group.", message: null };
+  }
+
+  const { error } = await supabase
+    .from("groups")
+    .update({ name, emoji })
+    .eq("id", groupId);
+
+  if (error) {
+    return { error: "Could not update the group. Please try again.", message: null };
+  }
+
+  revalidateGroup(groupId);
+  return { error: null, message: "Group updated." };
+}
+
+export async function deleteGroupAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const user = await getCurrentUser();
+  const groupId = text(formData, "groupId");
+
+  if (!isUuid(groupId)) {
+    return { error: "That group could not be found.", message: null };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const role = await membershipRole(supabase, groupId, user.id);
+
+  if (role !== "owner") {
+    return { error: "Only the group owner can delete this group.", message: null };
+  }
+
+  const { error } = await supabase.from("groups").delete().eq("id", groupId);
+
+  if (error) {
+    return { error: "Could not delete the group. Please try again.", message: null };
+  }
+
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/groups");
+  revalidatePath("/dashboard/activity");
+  revalidatePath("/dashboard/people");
+  redirect("/dashboard/groups?deleted=group");
 }
 
 export async function addMemberAction(
@@ -125,11 +270,90 @@ export async function addMemberAction(
   };
 }
 
-export async function createExpenseAction(
+export async function removeMemberAction(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  await getCurrentUser();
+  const user = await getCurrentUser();
+  const groupId = text(formData, "groupId");
+  const memberId = text(formData, "memberId");
+
+  if (!isUuid(groupId) || !isUuid(memberId)) {
+    return { error: "That member could not be found.", message: null };
+  }
+
+  const leaving = memberId === user.id;
+  const supabase = await createSupabaseServerClient();
+  const myRole = await membershipRole(supabase, groupId, user.id);
+
+  if (!myRole) {
+    return { error: "You are not a member of this group.", message: null };
+  }
+  if (!leaving && myRole !== "owner") {
+    return { error: "Only the group owner can remove members.", message: null };
+  }
+
+  const targetRole = await membershipRole(supabase, groupId, memberId);
+  if (!targetRole) {
+    return { error: "They are no longer in this group.", message: null };
+  }
+  if (targetRole === "owner") {
+    return {
+      error: leaving
+        ? "The owner cannot leave. Delete the group instead."
+        : "The owner cannot be removed. Delete the group instead.",
+      message: null,
+    };
+  }
+
+  if (await memberHasActivity(supabase, groupId, memberId)) {
+    return {
+      error: leaving
+        ? "You have expenses or settlements in this group. Ask the owner to delete those records before you leave."
+        : "They have expenses or settlements in this group. Delete those records before removing them.",
+      message: null,
+    };
+  }
+
+  const { error } = await supabase
+    .from("group_members")
+    .delete()
+    .eq("group_id", groupId)
+    .eq("user_id", memberId);
+
+  if (error) {
+    return {
+      error: leaving ? "Could not leave the group." : "Could not remove that member.",
+      message: null,
+    };
+  }
+
+  if (leaving) {
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/groups");
+    revalidatePath("/dashboard/activity");
+    revalidatePath("/dashboard/people");
+    redirect("/dashboard/groups?left=1");
+  }
+
+  revalidateGroup(groupId);
+  return { error: null, message: "Member removed." };
+}
+
+interface ExpenseInput {
+  groupId: string;
+  title: string;
+  amountPaise: number;
+  paidBy: string;
+  category: ExpenseCategory;
+  spentAt: string;
+  notes: string;
+  splitUserIds: string[];
+}
+
+function readExpenseInput(
+  formData: FormData,
+): { input: ExpenseInput } | { error: string } {
   const groupId = text(formData, "groupId");
   const title = text(formData, "title");
   const amountPaise = parseRupeesToPaise(text(formData, "amount"));
@@ -140,43 +364,71 @@ export async function createExpenseAction(
   const splitAmong = formData
     .getAll("splitAmong")
     .filter((value): value is string => typeof value === "string" && value.length > 0);
-  const uniqueSplit = [...new Set(splitAmong)];
+  const splitUserIds = [...new Set(splitAmong)];
 
-  if (!groupId || title.length === 0) {
-    return { error: "Add a title for the expense.", message: null };
+  if (!isUuid(groupId) || title.length === 0) {
+    return { error: "Add a title for the expense." };
   }
   if (!amountPaise) {
-    return { error: "Enter an amount greater than ₹0.", message: null };
+    return { error: "Enter an amount greater than ₹0." };
   }
   if (!paidBy) {
-    return { error: "Choose who paid.", message: null };
+    return { error: "Choose who paid." };
   }
-  if (uniqueSplit.length === 0) {
-    return { error: "Select at least one person to split with.", message: null };
+  if (splitUserIds.length === 0) {
+    return { error: "Select at least one person to split with." };
   }
   if (!DATE_PATTERN.test(spentAt)) {
-    return { error: "Choose a valid date.", message: null };
+    return { error: "Choose a valid date." };
   }
   if (!isCategory(categoryValue)) {
-    return { error: "Choose a category.", message: null };
+    return { error: "Choose a category." };
   }
 
-  const shares = splitEqually(amountPaise, uniqueSplit);
-  const splits = Object.entries(shares).map(([userId, sharePaise]) => ({
+  return {
+    input: {
+      groupId,
+      title,
+      amountPaise,
+      paidBy,
+      category: categoryValue,
+      spentAt,
+      notes,
+      splitUserIds,
+    },
+  };
+}
+
+function expenseSplits(input: ExpenseInput) {
+  const shares = splitEqually(input.amountPaise, input.splitUserIds);
+  return Object.entries(shares).map(([userId, sharePaise]) => ({
     user_id: userId,
     share_paise: sharePaise,
   }));
+}
 
+export async function createExpenseAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  await getCurrentUser();
+  const parsed = readExpenseInput(formData);
+
+  if ("error" in parsed) {
+    return { error: parsed.error, message: null };
+  }
+
+  const input = parsed.input;
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.rpc("create_expense", {
-    p_group_id: groupId,
-    p_title: title,
-    p_amount_paise: amountPaise,
-    p_paid_by: paidBy,
-    p_category: categoryValue,
-    p_spent_at: spentAt,
-    p_notes: notes || null,
-    p_splits: splits,
+    p_group_id: input.groupId,
+    p_title: input.title,
+    p_amount_paise: input.amountPaise,
+    p_paid_by: input.paidBy,
+    p_category: input.category,
+    p_spent_at: input.spentAt,
+    p_notes: input.notes || null,
+    p_splits: expenseSplits(input),
   });
 
   if (error) {
@@ -189,8 +441,79 @@ export async function createExpenseAction(
     };
   }
 
-  revalidateGroup(groupId);
-  redirect(`/dashboard/groups/${groupId}?added=1`);
+  revalidateGroup(input.groupId);
+  redirect(`/dashboard/groups/${input.groupId}?added=1`);
+}
+
+export async function updateExpenseAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const user = await getCurrentUser();
+  const expenseId = text(formData, "expenseId");
+
+  if (!isUuid(expenseId)) {
+    return { error: "That expense could not be found.", message: null };
+  }
+
+  const parsed = readExpenseInput(formData);
+  if ("error" in parsed) {
+    return { error: parsed.error, message: null };
+  }
+
+  const input = parsed.input;
+  const supabase = await createSupabaseServerClient();
+  const { data: existing, error: loadError } = await supabase
+    .from("expenses")
+    .select("id, group_id, created_by")
+    .eq("id", expenseId)
+    .maybeSingle();
+
+  if (loadError || !existing || existing.group_id !== input.groupId) {
+    return { error: "That expense could not be found.", message: null };
+  }
+  if (existing.created_by !== user.id) {
+    return { error: "You can only edit expenses you added.", message: null };
+  }
+
+  // The split rows are writable only by the expense author, so an in-place
+  // rewrite cannot be done atomically through PostgREST. Create the corrected
+  // expense + splits with the existing atomic RPC, then remove the old row. If
+  // the delete fails, drop the new row again so nothing is left duplicated.
+  const { data: createdId, error: createError } = await supabase.rpc("create_expense", {
+    p_group_id: input.groupId,
+    p_title: input.title,
+    p_amount_paise: input.amountPaise,
+    p_paid_by: input.paidBy,
+    p_category: input.category,
+    p_spent_at: input.spentAt,
+    p_notes: input.notes || null,
+    p_splits: expenseSplits(input),
+  });
+
+  if (createError || !createdId) {
+    return {
+      error:
+        createError?.message.includes("not a member") ||
+        createError?.message.includes("split member")
+          ? "Everyone on this expense must belong to the group."
+          : "Could not update the expense. Please try again.",
+      message: null,
+    };
+  }
+
+  const { error: deleteError } = await supabase
+    .from("expenses")
+    .delete()
+    .eq("id", expenseId);
+
+  if (deleteError) {
+    await supabase.from("expenses").delete().eq("id", createdId);
+    return { error: "Could not update the expense. Please try again.", message: null };
+  }
+
+  revalidateGroup(input.groupId);
+  redirect(`/dashboard/groups/${input.groupId}?updated=1`);
 }
 
 export async function recordSettlementAction(
@@ -241,12 +564,35 @@ export async function deleteExpenseAction(formData: FormData): Promise<void> {
   const expenseId = text(formData, "expenseId");
   const groupId = text(formData, "groupId");
 
-  if (!expenseId || !groupId) return;
+  if (!isUuid(expenseId) || !isUuid(groupId)) return;
 
   const supabase = await createSupabaseServerClient();
-  await supabase.from("expenses").delete().eq("id", expenseId);
+  const { error } = await supabase.from("expenses").delete().eq("id", expenseId);
 
   revalidateGroup(groupId);
+  if (!error) {
+    redirect(`/dashboard/groups/${groupId}?deleted=expense`);
+  }
+}
+
+export async function deleteSettlementAction(formData: FormData): Promise<void> {
+  await getCurrentUser();
+  const settlementId = text(formData, "settlementId");
+  const groupId = text(formData, "groupId");
+
+  if (!isUuid(settlementId) || !isUuid(groupId)) return;
+
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
+    .from("settlements")
+    .delete()
+    .eq("id", settlementId)
+    .eq("group_id", groupId);
+
+  revalidateGroup(groupId);
+  if (!error) {
+    redirect(`/dashboard/groups/${groupId}?deleted=settlement`);
+  }
 }
 
 export async function updateProfileAction(

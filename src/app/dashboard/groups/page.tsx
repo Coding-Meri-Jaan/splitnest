@@ -13,14 +13,18 @@ export const metadata: Metadata = {
   title: "Groups",
 };
 
-export default function GroupsPage() {
+interface GroupsPageProps {
+  searchParams: Promise<{ deleted?: string; left?: string }>;
+}
+
+export default function GroupsPage({ searchParams }: GroupsPageProps) {
   return (
     <div className="space-y-6">
       <PageHeader
         title="Groups"
         description="Every nest you share with friends, family, and flatmates."
         action={
-          <Button render={<Link href="/dashboard/groups/new" />}>
+          <Button nativeButton={false} render={<Link href="/dashboard/groups/new" />}>
             <PlusIcon />
             New group
           </Button>
@@ -28,36 +32,56 @@ export default function GroupsPage() {
       />
 
       <Suspense fallback={<GroupsSkeleton />}>
-        <GroupsList />
+        <GroupsList searchParams={searchParams} />
       </Suspense>
     </div>
   );
 }
 
-async function GroupsList() {
+async function GroupsList({ searchParams }: GroupsPageProps) {
+  const query = await searchParams;
   const user = await getCurrentUser();
   const groups = await getGroups(user.id);
-
-  if (groups.length === 0) {
-    return (
-      <div className="rounded-xl border border-dashed bg-background p-10 text-center">
-        <p className="text-lg font-medium">No groups yet</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Create a nest for your trip, flat, or office lunch crew.
-        </p>
-        <Button className="mt-4" render={<Link href="/dashboard/groups/new" />}>
-          <PlusIcon />
-          Create your first group
-        </Button>
-      </div>
-    );
-  }
+  const notice =
+    query.deleted === "group"
+      ? "Group deleted."
+      : query.left === "1"
+        ? "You left the group."
+        : null;
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-      {groups.map((group) => (
-        <GroupCard key={group.id} group={group} />
-      ))}
+    <div className="space-y-4">
+      {notice ? (
+        <p
+          role="status"
+          className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400"
+        >
+          {notice}
+        </p>
+      ) : null}
+
+      {groups.length === 0 ? (
+        <div className="rounded-xl border border-dashed bg-background p-10 text-center">
+          <p className="text-lg font-medium">No groups yet</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Create a nest for your trip, flat, or office lunch crew.
+          </p>
+          <Button
+            className="mt-4"
+            nativeButton={false}
+            render={<Link href="/dashboard/groups/new" />}
+          >
+            <PlusIcon />
+            Create your first group
+          </Button>
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {groups.map((group) => (
+            <GroupCard key={group.id} group={group} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

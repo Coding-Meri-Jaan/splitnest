@@ -1,36 +1,58 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 
 import { SubmitButton } from "@/components/auth/submit-button";
 import { FormMessage } from "@/components/shared/form-message";
 import { Input } from "@/components/ui/input";
 import { categoryMeta } from "@/lib/categories";
-import { createExpenseAction } from "@/lib/data/actions";
+import { createExpenseAction, updateExpenseAction } from "@/lib/data/actions";
 import { initialFormState } from "@/lib/form-state";
 import { formatINRPrecise } from "@/lib/format";
-import type { CategoryId, Person } from "@/types";
+import type { CategoryId, ExpenseView, Person } from "@/types";
 
 interface ExpenseFormProps {
   groupId: string;
   members: Person[];
   currentUserId: string;
+  /** Present when editing an existing expense instead of creating one. */
+  expense?: ExpenseView;
 }
 
 const CATEGORY_IDS = Object.keys(categoryMeta) as CategoryId[];
 
-export function ExpenseForm({ groupId, members, currentUserId }: ExpenseFormProps) {
-  const [state, formAction] = useActionState(createExpenseAction, initialFormState);
-  const [amount, setAmount] = useState("");
-  const [selected, setSelected] = useState<string[]>(members.map((member) => member.id));
+export function ExpenseForm({
+  groupId,
+  members,
+  currentUserId,
+  expense,
+}: ExpenseFormProps) {
+  const editing = Boolean(expense);
+  const [state, formAction] = useActionState(
+    editing ? updateExpenseAction : createExpenseAction,
+    initialFormState,
+  );
+  const [amount, setAmount] = useState(expense ? String(expense.amount) : "");
+  const [selected, setSelected] = useState<string[]>(
+    expense?.splitUserIds ?? members.map((member) => member.id),
+  );
+  const spentAtRef = useRef<HTMLInputElement>(null);
+
+  // Reading the clock during render is not allowed while prerendering. Fill
+  // today's date directly on the input after hydration, leaving an existing
+  // date (when editing) untouched.
+  useEffect(() => {
+    const input = spentAtRef.current;
+    if (input && !input.value) {
+      input.value = new Date().toISOString().slice(0, 10);
+    }
+  }, []);
 
   const parsed = Number(amount.replace(/[₹,\s]/g, ""));
   const share =
     Number.isFinite(parsed) && parsed > 0 && selected.length > 0
       ? parsed / selected.length
       : null;
-
-  const today = new Date().toISOString().slice(0, 10);
 
   function toggleMember(memberId: string) {
     setSelected((current) =>
@@ -43,13 +65,21 @@ export function ExpenseForm({ groupId, members, currentUserId }: ExpenseFormProp
   return (
     <form action={formAction} className="space-y-4">
       <input type="hidden" name="groupId" value={groupId} />
+      {expense ? <input type="hidden" name="expenseId" value={expense.id} /> : null}
       <FormMessage error={state.error} message={state.message} />
 
       <div className="space-y-2">
         <label htmlFor="title" className="text-sm font-medium">
           What was it for?
         </label>
-        <Input id="title" name="title" placeholder="Beach shack dinner" maxLength={120} required />
+        <Input
+          id="title"
+          name="title"
+          placeholder="Beach shack dinner"
+          maxLength={120}
+          defaultValue={expense?.title}
+          required
+        />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -72,7 +102,14 @@ export function ExpenseForm({ groupId, members, currentUserId }: ExpenseFormProp
           <label htmlFor="spentAt" className="text-sm font-medium">
             Date
           </label>
-          <Input id="spentAt" name="spentAt" type="date" defaultValue={today} required />
+          <Input
+            ref={spentAtRef}
+            id="spentAt"
+            name="spentAt"
+            type="date"
+            defaultValue={expense?.date ?? ""}
+            required
+          />
         </div>
 
         <div className="space-y-2">
@@ -82,7 +119,7 @@ export function ExpenseForm({ groupId, members, currentUserId }: ExpenseFormProp
           <select
             id="paidBy"
             name="paidBy"
-            defaultValue={currentUserId}
+            defaultValue={expense?.paidById ?? currentUserId}
             className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           >
             {members.map((member) => (
@@ -100,7 +137,7 @@ export function ExpenseForm({ groupId, members, currentUserId }: ExpenseFormProp
           <select
             id="category"
             name="category"
-            defaultValue="food"
+            defaultValue={expense?.category ?? "food"}
             className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           >
             {CATEGORY_IDS.map((id) => (
@@ -148,11 +185,14 @@ export function ExpenseForm({ groupId, members, currentUserId }: ExpenseFormProp
           name="notes"
           rows={2}
           maxLength={500}
+          defaultValue={expense?.notes ?? ""}
           className="w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         />
       </div>
 
-      <SubmitButton pendingLabel="Saving…">Save expense</SubmitButton>
+      <SubmitButton pendingLabel="Saving…">
+        {editing ? "Save changes" : "Save expense"}
+      </SubmitButton>
     </form>
   );
 }

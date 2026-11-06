@@ -4,10 +4,10 @@ An **India-first group expense sharing** app, inspired by Splitwise. SplitNest i
 built for trips, flats, office lunches, and festive get-togethers — track who
 paid, who owes, and settle up in ₹.
 
-> **Phase 2 — Backend.** Real accounts, groups, expenses, and settlements backed
-> by Supabase (Postgres + Auth + Row Level Security). Payments are **not**
-> processed: settlements can be recorded, and a UPI deep link opens the payee's
-> app with the amount pre-filled.
+> **Phase 2 — Complete.** Real accounts, groups, expenses, settlements, and
+> day-to-day group management backed by Supabase (Postgres + Auth + Row Level
+> Security). Payments are **not** processed: settlements can be recorded, and a
+> UPI deep link opens the payee's app with the amount pre-filled.
 
 ## Tech stack
 
@@ -126,6 +126,20 @@ Open <http://localhost:3000>, sign up, confirm the email, then create a group.
   fewest transfers. Nothing is stored as a running balance, so the ledger is the
   only source of truth.
 
+## Managing a nest
+
+- **Owners** can rename or delete a group and remove members from **Group
+  settings**.
+- **Members** can leave from the same screen. The owner cannot leave; they must
+  delete the group instead.
+- A member can only be removed or leave while they have no expenses or
+  settlements in the group. Delete that activity first.
+- **Expense authors** can edit or delete their own expenses. The group owner can
+  delete any expense, but can only edit their own. Editing recreates the expense
+  and its splits atomically, then removes the old row.
+- **Settlement authors** or the group owner can delete a settlement; recording a
+  new one recalculates balances and suggested transfers immediately.
+
 ## Security model
 
 - **RLS on every table.** Reads are limited to groups you belong to; expenses and
@@ -137,9 +151,13 @@ Open <http://localhost:3000>, sign up, confirm the email, then create a group.
 - **`find_user_for_invite`** lets a group owner resolve an email without opening
   up the `profiles` table to the whole world.
 - **`create_expense`** writes the expense and all splits in one transaction and
-  re-validates membership and split totals server-side.
+  re-validates membership and split totals server-side. Editing an expense uses
+  the same RPC, then deletes the old row (and rolls the new row back if that
+  delete fails).
 - **Auth checks happen close to the data**, not just in the proxy: every page and
   Server Action calls `getCurrentUser()` and the database enforces row access.
+  RLS also limits who may rename a group, remove a member, or delete a
+  settlement.
 
 ## Project structure
 
@@ -194,3 +212,13 @@ supabase/migrations/           # SQL schema, RLS, functions
 7. Add a UPI id in **Settings**, then use **Pay via UPI** on a suggested
    transfer.
 8. Try opening another user's group id directly — you should get a 404.
+9. As the owner, rename the group in **Group settings**; the new name appears
+   everywhere.
+10. Edit an expense you created; the amount, title, and shares update.
+11. Record a settlement, then delete it; balances and suggested transfers return
+    to their previous values.
+12. Remove a member with no activity, then add them back by email.
+13. As a member, try to leave a group where you have expenses — it should be
+    blocked with a clear message. Delete your expense, then leave.
+14. As the owner, delete the group; it and its expenses disappear from
+    **Groups**.
