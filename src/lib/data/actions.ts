@@ -5,9 +5,11 @@ import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/lib/auth/user";
 import { displayName } from "@/lib/display-name";
-import { parseRupeesToPaise, splitEqually } from "@/lib/money";
+import { parseRupeesToPaise } from "@/lib/money";
+import { buildSplitShares, isSplitMode } from "@/lib/splits";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { ExpenseCategory } from "@/types/database";
+import type { ExpenseSplitMode } from "@/types";
 import type { FormState } from "@/lib/form-state";
 
 const CATEGORIES: ExpenseCategory[] = [
@@ -348,7 +350,9 @@ interface ExpenseInput {
   category: ExpenseCategory;
   spentAt: string;
   notes: string;
+  splitMode: ExpenseSplitMode;
   splitUserIds: string[];
+  splitValues: Record<string, string>;
 }
 
 function readExpenseInput(
@@ -361,6 +365,7 @@ function readExpenseInput(
   const categoryValue = text(formData, "category");
   const spentAt = text(formData, "spentAt");
   const notes = text(formData, "notes");
+  const splitModeValue = text(formData, "splitMode") || "equal";
   const splitAmong = formData
     .getAll("splitAmong")
     .filter((value): value is string => typeof value === "string" && value.length > 0);
@@ -378,11 +383,21 @@ function readExpenseInput(
   if (splitUserIds.length === 0) {
     return { error: "Select at least one person to split with." };
   }
+  if (!isSplitMode(splitModeValue)) {
+    return { error: "Choose a split method." };
+  }
   if (!DATE_PATTERN.test(spentAt)) {
     return { error: "Choose a valid date." };
   }
   if (!isCategory(categoryValue)) {
     return { error: "Choose a category." };
+  }
+
+  const splitValues: Record<string, string> = {};
+  if (splitModeValue !== "equal") {
+    for (const userId of splitUserIds) {
+      splitValues[userId] = text(formData, `splitValue_${userId}`);
+    }
   }
 
   return {
@@ -394,16 +409,29 @@ function readExpenseInput(
       category: categoryValue,
       spentAt,
       notes,
+      splitMode: splitModeValue,
       splitUserIds,
+      splitValues,
     },
   };
 }
 
 function expenseSplits(input: ExpenseInput) {
-  const shares = splitEqually(input.amountPaise, input.splitUserIds);
-  return Object.entries(shares).map(([userId, sharePaise]) => ({
-    user_id: userId,
-    share_paise: sharePaise,
+  return buildSplitShares({
+    totalPaise: input.amountPaise,
+    mode: input.splitMode,
+    participants: input.splitUserIds.map((userId) => ({
+      userId,
+      value: input.splitValues[userId],
+    })),
+  });
+}
+
+function rpcSplits(splits: { userId: string; sharePaise: number; splitValue: number | null }[]) {
+  return splits.map((split) => ({
+    user_id: split.userId,
+    share_paise: split.sharePaise,
+    split_value: split.splitValue,
   }));
 }
 
@@ -419,6 +447,11 @@ export async function createExpenseAction(
   }
 
   const input = parsed.input;
+  const built = expenseSplits(input);
+  if ("error" in built) {
+    return { error: built.error, message: null };
+  }
+
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.rpc("create_expense", {
     p_group_id: input.groupId,
@@ -428,7 +461,8 @@ export async function createExpenseAction(
     p_category: input.category,
     p_spent_at: input.spentAt,
     p_notes: input.notes || null,
-    p_splits: expenseSplits(input),
+    p_split_mode: input.splitMode,
+    p_splits: rpcSplits(built.splits),
   });
 
   if (error) {
@@ -462,6 +496,11 @@ export async function updateExpenseAction(
   }
 
   const input = parsed.input;
+  const built = expenseSplits(input);
+  if ("error" in built) {
+    return { error: built.error, message: null };
+  }
+
   const supabase = await createSupabaseServerClient();
   const { data: existing, error: loadError } = await supabase
     .from("expenses")
@@ -488,7 +527,8 @@ export async function updateExpenseAction(
     p_category: input.category,
     p_spent_at: input.spentAt,
     p_notes: input.notes || null,
-    p_splits: expenseSplits(input),
+    p_split_mode: input.splitMode,
+    p_splits: rpcSplits(built.splits),
   });
 
   if (createError || !createdId) {

@@ -8,6 +8,8 @@ export type CategoryId =
   | "shopping"
   | "other";
 
+export type ExpenseSplitMode = "equal" | "amount" | "percentage" | "shares";
+
 /**
  * UI-facing view models.
  *
@@ -33,6 +35,14 @@ export interface GroupView {
   netBalance: number;
 }
 
+export interface ExpenseSplitView {
+  userId: string;
+  /** This person's share in rupees. */
+  share: number;
+  /** Percentage (0–100) or share weight; null for equal/exact splits. */
+  inputValue: number | null;
+}
+
 export interface ExpenseView {
   id: string;
   groupId: string;
@@ -45,6 +55,9 @@ export interface ExpenseView {
   category: CategoryId;
   notes: string | null;
   createdById: string;
+  splitMode: ExpenseSplitMode;
+  /** Everyone sharing this expense, with their exact share. */
+  splits: ExpenseSplitView[];
   /** Everyone sharing this expense. */
   splitUserIds: string[];
   splitCount: number;

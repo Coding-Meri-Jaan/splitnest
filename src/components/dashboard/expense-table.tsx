@@ -15,6 +15,7 @@ import {
 import { getCategoryMeta } from "@/lib/categories";
 import { deleteExpenseAction } from "@/lib/data/actions";
 import { formatDate } from "@/lib/format";
+import { SPLIT_MODE_LABELS } from "@/lib/splits";
 import type { ExpenseView } from "@/types";
 
 interface ExpenseTableProps {
@@ -63,6 +64,10 @@ export function ExpenseTable({
         {expenses.map((expense) => {
           const category = getCategoryMeta(expense.category);
           const CategoryIcon = category.icon;
+          const splitLabel =
+            expense.splitMode === "equal"
+              ? null
+              : SPLIT_MODE_LABELS[expense.splitMode];
           const canEdit = showEdit && expense.createdById === currentUserId;
           const canDelete =
             showDelete &&
@@ -79,6 +84,7 @@ export function ExpenseTable({
                     <span className="font-medium">{expense.title}</span>
                     <span className="text-xs text-muted-foreground">
                       {formatDate(expense.date)} · {category.label}
+                      {splitLabel ? ` · ${splitLabel}` : ""}
                     </span>
                   </div>
                 </div>

@@ -1,3 +1,5 @@
+import type { ExpenseSplitMode } from "./index";
+
 export type Json =
   | string
   | number
@@ -102,6 +104,7 @@ export type Database = {
           notes: string | null;
           created_by: string;
           created_at: string;
+          split_mode: ExpenseSplitMode;
         };
         Insert: {
           id?: string;
@@ -114,6 +117,7 @@ export type Database = {
           notes?: string | null;
           created_by: string;
           created_at?: string;
+          split_mode?: ExpenseSplitMode;
         };
         Update: {
           title?: string;
@@ -122,6 +126,7 @@ export type Database = {
           category?: ExpenseCategory;
           spent_at?: string;
           notes?: string | null;
+          split_mode?: ExpenseSplitMode;
         };
         Relationships: [];
       };
@@ -130,14 +135,17 @@ export type Database = {
           expense_id: string;
           user_id: string;
           share_paise: number;
+          split_value: number | null;
         };
         Insert: {
           expense_id: string;
           user_id: string;
           share_paise: number;
+          split_value?: number | null;
         };
         Update: {
           share_paise?: number;
+          split_value?: number | null;
         };
         Relationships: [];
       };
@@ -193,6 +201,7 @@ export type Database = {
           p_category: ExpenseCategory;
           p_spent_at: string;
           p_notes: string | null;
+          p_split_mode: ExpenseSplitMode;
           p_splits: Json;
         };
         Returns: string;
@@ -200,6 +209,7 @@ export type Database = {
     };
     Enums: {
       expense_category: ExpenseCategory;
+      expense_split_mode: ExpenseSplitMode;
       member_role: MemberRole;
       settlement_method: SettlementMethod;
     };

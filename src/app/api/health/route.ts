@@ -41,6 +41,7 @@ export async function GET() {
     passwordPolicy:
       "10+ characters with uppercase, lowercase, number, and symbol; common passwords blocked",
     tables: {} as Record<string, string>,
+    splitSchema: "skipped" as string,
     nextStep: "",
   };
 
@@ -95,6 +96,25 @@ export async function GET() {
     }),
   );
 
+  // Custom splits need two new columns. Selecting them is the cheapest way to
+  // prove migration 0004 landed; PostgREST answers 400 when a column is unknown.
+  try {
+    const [splitModeProbe, splitValueProbe] = await Promise.all([
+      fetch(`${url}/rest/v1/expenses?select=split_mode&limit=1`, {
+        headers: authHeaders,
+        cache: "no-store",
+      }),
+      fetch(`${url}/rest/v1/expense_splits?select=split_value&limit=1`, {
+        headers: authHeaders,
+        cache: "no-store",
+      }),
+    ]);
+    report.splitSchema =
+      splitModeProbe.ok && splitValueProbe.ok ? "ok" : "missing";
+  } catch {
+    report.splitSchema = "unreachable";
+  }
+
   const missing = Object.entries(report.tables)
     .filter(([, status]) => status === "missing")
     .map(([table]) => table);
@@ -131,8 +151,15 @@ export async function GET() {
   }
   if (missing.length > 0) {
     steps.push(
-      `Run supabase/migrations/0001_init.sql, 0002_expenses_and_invites.sql, then 0003_profile_names.sql in the Supabase SQL editor (missing: ${missing.join(", ")}).`,
+      `Run supabase/migrations/0001_init.sql, 0002_expenses_and_invites.sql, 0003_profile_names.sql, then 0004_custom_splits.sql in the Supabase SQL editor (missing: ${missing.join(", ")}).`,
     );
+  }
+  if (report.auth === "ok" && report.splitSchema === "missing") {
+    steps.push(
+      "Custom split modes are unavailable: run supabase/migrations/0004_custom_splits.sql in the Supabase SQL editor. Expense pages will error until it is applied.",
+    );
+  } else if (report.splitSchema === "unreachable") {
+    steps.push("Could not check the custom split columns. Is the REST endpoint reachable?");
   }
 
   report.nextStep =

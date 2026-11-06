@@ -102,7 +102,7 @@ async function loadLedger(
       supabase
         .from("expenses")
         .select(
-          "id, group_id, title, amount_paise, paid_by, category, spent_at, notes, created_by, created_at",
+          "id, group_id, title, amount_paise, paid_by, category, spent_at, notes, created_by, created_at, split_mode",
         )
         .in("group_id", groupIds)
         .order("spent_at", { ascending: false })
@@ -128,7 +128,7 @@ async function loadLedger(
     expenseIds.length > 0
       ? await supabase
           .from("expense_splits")
-          .select("expense_id, user_id, share_paise")
+          .select("expense_id, user_id, share_paise, split_value")
           .in("expense_id", expenseIds)
       : { data: [] as SplitRow[], error: null };
 
@@ -224,21 +224,34 @@ function buildExpenseViews(ledger: Ledger): ExpenseView[] {
   const groupNames = new Map(ledger.groups.map((group) => [group.id, group.name]));
   const splitsByExpense = groupBy(ledger.splits, (split) => split.expense_id);
 
-  return ledger.expenses.map((expense) => ({
-    id: expense.id,
-    groupId: expense.group_id,
-    groupName: groupNames.get(expense.group_id) ?? "Group",
-    title: expense.title,
-    amount: toRupees(expense.amount_paise),
-    paidById: expense.paid_by,
-    paidByName: people.get(expense.paid_by)?.name ?? "Member",
-    date: expense.spent_at,
-    category: expense.category,
-    notes: expense.notes,
-    createdById: expense.created_by,
-    splitUserIds: (splitsByExpense.get(expense.id) ?? []).map((split) => split.user_id),
-    splitCount: (splitsByExpense.get(expense.id) ?? []).length,
-  }));
+  return ledger.expenses.map((expense) => {
+    const splits = (splitsByExpense.get(expense.id) ?? [])
+      .map((split) => ({
+        userId: split.user_id,
+        share: toRupees(split.share_paise),
+        inputValue:
+          split.split_value === null ? null : Number(split.split_value),
+      }))
+      .sort((a, b) => a.userId.localeCompare(b.userId));
+
+    return {
+      id: expense.id,
+      groupId: expense.group_id,
+      groupName: groupNames.get(expense.group_id) ?? "Group",
+      title: expense.title,
+      amount: toRupees(expense.amount_paise),
+      paidById: expense.paid_by,
+      paidByName: people.get(expense.paid_by)?.name ?? "Member",
+      date: expense.spent_at,
+      category: expense.category,
+      notes: expense.notes,
+      createdById: expense.created_by,
+      splitMode: expense.split_mode,
+      splits,
+      splitUserIds: splits.map((split) => split.userId),
+      splitCount: splits.length,
+    };
+  });
 }
 
 function buildSettlementViews(ledger: Ledger): SettlementView[] {

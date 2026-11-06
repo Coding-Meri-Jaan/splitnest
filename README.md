@@ -42,6 +42,8 @@ paid, who owes, and settle up in ₹.
      atomic expense creation
    - `supabase/migrations/0003_profile_names.sql` — stop using email handles as
      display names and repair existing profiles
+   - `supabase/migrations/0004_custom_splits.sql` — custom split modes (exact
+     amounts, percentages, weighted shares) and the matching expense RPC
 3. Copy the project URL and anon key from **Project Settings → API**.
 
 ## 2. Configure environment variables
@@ -239,6 +241,19 @@ Open <http://localhost:3000>, sign up, confirm the email, then create a group.
 - Equal splits are computed in `splitEqually`: the remainder (at most *n − 1*
   paise) is handed out one paise at a time to members sorted by user id, so the
   shares always sum to the expense total and the result is deterministic.
+- Four split modes are supported: **equally**, **exact amounts**, **percentages**,
+  and **shares** (weights). `src/lib/splits.ts` validates each mode on both the
+  client (live preview) and the server (the action re-runs the same code, so the
+  preview cannot be trusted into the database).
+- Exact amounts must add up to the expense total. Percentages must add up to
+  exactly 100% (two decimals). Shares must contain at least one positive weight
+  (up to four decimals). Zero is allowed for individual exact amounts, percentages,
+  and weights, which supports "someone is on the bill but owes nothing".
+- Percentage and share modes use largest-remainder allocation: every share is an
+  integer number of paise, ties are broken by user id, and the shares always sum
+  to the expense total. `share_paise` remains the single source of truth for
+  balances; `split_value` only preserves the percentage or weight so the form can
+  be edited later.
 - Balances are derived in TypeScript from expenses + splits + settlements
   (`computeNetBalances`) and cleared with `simplifyDebts`, which produces the
   fewest transfers. Nothing is stored as a running balance, so the ledger is the
@@ -269,9 +284,10 @@ Open <http://localhost:3000>, sign up, confirm the email, then create a group.
 - **`find_user_for_invite`** lets a group owner resolve an email without opening
   up the `profiles` table to the whole world.
 - **`create_expense`** writes the expense and all splits in one transaction and
-  re-validates membership and split totals server-side. Editing an expense uses
-  the same RPC, then deletes the old row (and rolls the new row back if that
-  delete fails).
+  re-validates membership, split totals, and the percentage/share sums
+  server-side. Editing an expense uses the same RPC, then deletes the old row
+  (and rolls the new row back if that delete fails). The previous 8-argument
+  function is kept during rollout so a client on the older release still works.
 - **Auth checks happen close to the data**, not just in the proxy: every page and
   Server Action calls `getCurrentUser()` and the database enforces row access.
   RLS also limits who may rename a group, remove a member, or delete a
@@ -302,6 +318,7 @@ src/
 │  ├─ data/                    # read queries + server actions
 │  ├─ supabase/                # browser/server clients, proxy refresh
 │  ├─ money.ts + money.test.ts # paise parsing, splits, balances
+│  ├─ splits.ts + splits.test.ts # split modes, validation, rounding
 │  ├─ upi.ts + upi.test.ts     # UPI deep links
 │  └─ format.ts, categories.ts
 ├─ proxy.ts                    # Next 16 middleware (session refresh)
@@ -358,3 +375,22 @@ supabase/migrations/           # SQL schema, RLS, functions
     blocked with a clear message. Delete your expense, then leave.
 13. As the owner, delete the group; it and its expenses disappear from
     **Groups**.
+
+### Custom splits
+
+1. Add a ₹100 expense split by **exact amounts** (₹60 / ₹40) and save; the group
+   balances show those exact shares.
+2. Try exact amounts that add up to ₹99 or ₹101 — the form must block the save
+   with the current total in the message.
+3. Add a ₹100 expense split by **percentages** (50% / 30% / 20%); the preview and
+   saved shares are ₹50 / ₹30 / ₹20.
+4. Try percentages that add up to 99.99% — the form must refuse to save.
+5. Add a ₹90 expense split by **shares** (2 / 1); the shares are ₹60 / ₹30.
+6. Add a ₹0.01 expense split by **shares** (1 / 1); the shares must be ₹0.01 /
+   ₹0.00 and still sum to the expense.
+7. Edit each custom-split expense; the mode, per-person values, and shares must
+   come back exactly as saved, and saving again must not change the balances.
+8. Switch an expense from equal to percentages and back to equal; the leftover
+   paise must stay deterministic.
+9. Open `/api/health`; `splitSchema` must read `ok` after migration 0004, and the
+   next-step text must name 0004 when it is missing.

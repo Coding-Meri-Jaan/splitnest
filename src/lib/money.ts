@@ -24,18 +24,31 @@ export interface Transfer {
   amountPaise: number;
 }
 
-/**
- * Parses a rupee amount typed by a human ("1,234.5", "₹ 1234", "1234.56")
- * into integer paise. Returns null when the input is not a valid amount.
- */
-export function parseRupeesToPaise(input: string): number | null {
+function parseRupeeString(input: string): number | null {
   const cleaned = input.replace(/[₹,\s]/g, "");
   if (cleaned === "" || !/^\d+(\.\d{1,2})?$/.test(cleaned)) {
     return null;
   }
   const [whole, fraction = ""] = cleaned.split(".");
   const paise = Number(whole) * 100 + Number(fraction.padEnd(2, "0"));
-  return Number.isSafeInteger(paise) && paise > 0 ? paise : null;
+  return Number.isSafeInteger(paise) ? paise : null;
+}
+
+/**
+ * Parses a rupee amount typed by a human ("1,234.5", "₹ 1234", "1234.56")
+ * into integer paise. Returns null when the input is not a valid amount.
+ */
+export function parseRupeesToPaise(input: string): number | null {
+  const paise = parseRupeeString(input);
+  return paise !== null && paise > 0 ? paise : null;
+}
+
+/**
+ * Same as `parseRupeesToPaise`, but accepts zero. Used for exact split
+ * amounts, where one participant may legitimately owe nothing.
+ */
+export function parseRupeesToPaiseAllowZero(input: string): number | null {
+  return parseRupeeString(input);
 }
 
 /** Formats paise as an exact rupee string with two decimals, no symbol. */

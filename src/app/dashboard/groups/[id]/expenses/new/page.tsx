@@ -43,7 +43,10 @@ async function NewExpenseContent({ params }: NewExpensePageProps) {
         {detail.group.name}
       </Button>
 
-      <PageHeader title="Add expense" description="Split it equally between the people you pick." />
+      <PageHeader
+        title="Add expense"
+        description="Split it equally, by exact amounts, by percentages, or by shares."
+      />
 
       <Card>
         <CardContent className="pt-6">

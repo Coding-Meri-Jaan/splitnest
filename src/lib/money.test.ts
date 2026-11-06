@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   computeNetBalances,
   parseRupeesToPaise,
+  parseRupeesToPaiseAllowZero,
   simplifyDebts,
   splitEqually,
 } from "./money";
@@ -21,6 +22,20 @@ describe("parseRupeesToPaise", () => {
     expect(parseRupeesToPaise("-50")).toBeNull();
     expect(parseRupeesToPaise("12.345")).toBeNull();
     expect(parseRupeesToPaise("abc")).toBeNull();
+  });
+});
+
+describe("parseRupeesToPaiseAllowZero", () => {
+  it("accepts zero for exact split amounts", () => {
+    expect(parseRupeesToPaiseAllowZero("0")).toBe(0);
+    expect(parseRupeesToPaiseAllowZero("0.00")).toBe(0);
+    expect(parseRupeesToPaiseAllowZero("1,234.5")).toBe(123_450);
+  });
+
+  it("still rejects invalid input", () => {
+    expect(parseRupeesToPaiseAllowZero("")).toBeNull();
+    expect(parseRupeesToPaiseAllowZero("-1")).toBeNull();
+    expect(parseRupeesToPaiseAllowZero("12.345")).toBeNull();
   });
 });
 
