@@ -22,6 +22,11 @@ import {
   switchAccountAction,
 } from "@/lib/auth/actions";
 import { safePath } from "@/lib/auth/safe-path";
+import {
+  EPHEMERAL_IDLE_TIMEOUT_MS,
+  REMEMBERED_IDLE_TIMEOUT_MS,
+  REMEMBERED_SESSION_MAX_AGE_SECONDS,
+} from "@/lib/auth/session";
 import { initialAuthState } from "@/lib/auth/types";
 
 export interface CurrentSession {
@@ -54,12 +59,20 @@ export function LoginForm({ currentUser = null }: LoginFormProps) {
     resendVerificationAction,
     initialAuthState,
   );
-  const [remember, setRemember] = useState(true);
+  const [remember, setRemember] = useState(false);
   const [email, setEmail] = useState("");
 
   const next = safePath(searchParams.get("next"));
   const linkError = LINK_ERRORS[searchParams.get("error") ?? ""] ?? null;
   const linkMessage = MESSAGES[searchParams.get("message") ?? ""] ?? null;
+
+  const ephemeralMinutes = Math.round(EPHEMERAL_IDLE_TIMEOUT_MS / 60_000);
+  const rememberedDays = Math.round(
+    REMEMBERED_SESSION_MAX_AGE_SECONDS / (24 * 60 * 60),
+  );
+  const rememberedIdleDays = Math.round(
+    REMEMBERED_IDLE_TIMEOUT_MS / (24 * 60 * 60 * 1000),
+  );
 
   return (
     <Card className="border-border/70 shadow-sm">
@@ -187,8 +200,10 @@ export function LoginForm({ currentUser = null }: LoginFormProps) {
             <span>
               Keep me signed in on this device
               <span className="block text-xs text-muted-foreground">
-                Off signs you out when the browser closes. On lasts up to 30
-                days.
+                Off signs you out when the browser closes or after{" "}
+                {ephemeralMinutes} minutes of inactivity. On lasts up to{" "}
+                {rememberedDays} days, and ends after {rememberedIdleDays} days
+                without activity.
               </span>
             </span>
           </label>

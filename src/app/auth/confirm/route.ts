@@ -22,9 +22,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/login?error=oauth", origin));
   }
 
-  // Google and email links do not carry a preference. Default to a remembered
-  // session; the login form can choose a browser-session instead.
-  const remember = searchParams.get("remember") !== "0";
+  // Only persist the session when the login form explicitly asked for it.
+  // Email links and Google sign-ins default to a browser-session cookie.
+  const remember = searchParams.get("remember") === "1";
   const supabase = await createSupabaseServerClient({ remember });
 
   if (code) {

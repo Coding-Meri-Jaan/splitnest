@@ -42,7 +42,7 @@ export function SignupForm() {
       ) : (
         <>
           <CardContent className="pb-0">
-            <GoogleSignInButton next="/dashboard" remember />
+            <GoogleSignInButton next="/dashboard" />
           </CardContent>
 
           <div className="my-4 flex items-center gap-3 px-6">

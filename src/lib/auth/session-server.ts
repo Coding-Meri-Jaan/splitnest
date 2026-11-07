@@ -3,10 +3,12 @@ import { cookies, headers } from "next/headers";
 import {
   SESSION_ACTIVITY_COOKIE,
   SESSION_REMEMBER_COOKIE,
+  SESSION_STARTED_COOKIE,
   activityCookieOptions,
   isAuthCookie,
   isRemembered,
   rememberCookieOptions,
+  startedCookieOptions,
 } from "./session";
 
 /**
@@ -57,10 +59,16 @@ export async function markSessionActive(remember: boolean): Promise<void> {
     cookieStore.delete(SESSION_REMEMBER_COOKIE);
   }
 
+  const now = Date.now();
   cookieStore.set(
     SESSION_ACTIVITY_COOKIE,
-    String(Date.now()),
+    String(now),
     activityCookieOptions(remember, secure),
+  );
+  cookieStore.set(
+    SESSION_STARTED_COOKIE,
+    String(now),
+    startedCookieOptions(remember, secure),
   );
 }
 
@@ -80,4 +88,5 @@ export async function clearSessionCookies(): Promise<void> {
 
   cookieStore.delete(SESSION_ACTIVITY_COOKIE);
   cookieStore.delete(SESSION_REMEMBER_COOKIE);
+  cookieStore.delete(SESSION_STARTED_COOKIE);
 }

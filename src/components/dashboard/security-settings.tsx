@@ -37,6 +37,10 @@ function days(ms: number): number {
   return Math.round(ms / (24 * 60 * 60 * 1000));
 }
 
+function minutes(ms: number): number {
+  return Math.round(ms / (60 * 1000));
+}
+
 export function SecuritySettings({
   email,
   emailVerified,
@@ -108,9 +112,9 @@ export function SecuritySettings({
         {rememberedDays} days and ends after {days(REMEMBERED_IDLE_TIMEOUT_MS)}{" "}
         days without activity. Without &ldquo;Keep me signed in&rdquo;, the
         session ends when the browser closes or after{" "}
-        {Math.round(EPHEMERAL_IDLE_TIMEOUT_MS / (60 * 60 * 1000))} hours of
-        inactivity. Supabase does not expose a list of other active sessions, so
-        the only way to revoke them is to sign out everywhere.
+        {minutes(EPHEMERAL_IDLE_TIMEOUT_MS)} minutes of inactivity. Supabase
+        does not expose a list of other active sessions, so the only way to
+        revoke them is to sign out everywhere.
       </p>
     </div>
   );

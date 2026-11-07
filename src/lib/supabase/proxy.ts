@@ -6,11 +6,12 @@ import type { Database } from "@/types/database";
 import {
   SESSION_ACTIVITY_COOKIE,
   SESSION_REMEMBER_COOKIE,
+  SESSION_STARTED_COOKIE,
   activityCookieOptions,
   authCookieOptions,
   isAuthCookie,
   isRemembered,
-  isSessionIdleExpired,
+  isSessionExpired,
   parseActivityCookie,
   shouldTouchActivity,
 } from "@/lib/auth/session";
@@ -76,9 +77,30 @@ export async function updateSession(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
   const now = Date.now();
-  const lastActive = parseActivityCookie(
+
+  // Legacy sessions created before the activity marker existed fall back to
+  // Supabase's last sign-in time, so shortening the policy applies immediately
+  // instead of leaving an old session valid forever.
+  const lastSignIn = user?.last_sign_in_at
+    ? Date.parse(user.last_sign_in_at)
+    : Number.NaN;
+  const signInFallback =
+    Number.isFinite(lastSignIn) && lastSignIn > 0 ? lastSignIn : null;
+
+  const activityMarker = parseActivityCookie(
     request.cookies.get(SESSION_ACTIVITY_COOKIE)?.value,
   );
+  const startedMarker = parseActivityCookie(
+    request.cookies.get(SESSION_STARTED_COOKIE)?.value,
+  );
+  const lastActive = activityMarker ?? signInFallback;
+  const startedAt = startedMarker ?? signInFallback;
+
+  // A remembered session from before the hard-limit marker existed has not
+  // opted into the new policy yet. Hold it to the strict 30-minute idle rule
+  // until the next sign-in writes `sn-started`; this makes a missing marker
+  // fail closed instead of granting an indefinite session.
+  const effectiveRemembered = remembered && startedMarker !== null;
 
   const isProtected = PROTECTED_PREFIXES.some((prefix) =>
     pathname.startsWith(prefix),
@@ -93,7 +115,7 @@ export async function updateSession(request: NextRequest) {
   if (
     user &&
     shouldCheckIdle &&
-    isSessionIdleExpired(lastActive, remembered, now)
+    isSessionExpired(lastActive, startedAt, effectiveRemembered, now)
   ) {
     try {
       await supabase.auth.signOut({ scope: "local" });
@@ -152,7 +174,7 @@ export async function updateSession(request: NextRequest) {
 
   // Signed-in people are allowed to open /login so they can see who they are
   // signed in as and switch accounts. Only refresh the idle marker here.
-  if (user && shouldTouchActivity(lastActive, now)) {
+  if (user && shouldTouchActivity(activityMarker, now)) {
     response.cookies.set(
       SESSION_ACTIVITY_COOKIE,
       String(now),
@@ -206,4 +228,5 @@ function clearSessionCookiesOnResponse(
 
   response.cookies.set(SESSION_ACTIVITY_COOKIE, "", { path: "/", maxAge: 0 });
   response.cookies.set(SESSION_REMEMBER_COOKIE, "", { path: "/", maxAge: 0 });
+  response.cookies.set(SESSION_STARTED_COOKIE, "", { path: "/", maxAge: 0 });
 }

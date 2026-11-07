@@ -3,15 +3,21 @@ import { describe, expect, it } from "vitest";
 import {
   ACTIVITY_REFRESH_MS,
   EPHEMERAL_IDLE_TIMEOUT_MS,
+  EPHEMERAL_SESSION_MAX_AGE_MS,
   REMEMBERED_IDLE_TIMEOUT_MS,
+  REMEMBERED_SESSION_MAX_AGE_MS,
   REMEMBERED_SESSION_MAX_AGE_SECONDS,
+  activityCookieOptions,
   authCookieOptions,
   isAuthCookie,
   isRemembered,
+  isSessionExpired,
   isSessionIdleExpired,
+  isSessionPastAbsoluteLimit,
   parseActivityCookie,
   providerLabel,
   shouldTouchActivity,
+  startedCookieOptions,
 } from "./session";
 
 const NOW = 1_700_000_000_000;
@@ -47,7 +53,7 @@ describe("isSessionIdleExpired", () => {
     expect(isSessionIdleExpired(0, false, NOW)).toBe(false);
   });
 
-  it("expires a remembered session after 14 days", () => {
+  it("expires a remembered session after 7 days", () => {
     expect(
       isSessionIdleExpired(NOW - REMEMBERED_IDLE_TIMEOUT_MS + 1, true, NOW),
     ).toBe(false);
@@ -56,12 +62,76 @@ describe("isSessionIdleExpired", () => {
     ).toBe(true);
   });
 
-  it("expires a session-only session after 12 hours", () => {
+  it("expires a session-only session after 30 minutes", () => {
     expect(
       isSessionIdleExpired(NOW - EPHEMERAL_IDLE_TIMEOUT_MS + 1, false, NOW),
     ).toBe(false);
     expect(
       isSessionIdleExpired(NOW - EPHEMERAL_IDLE_TIMEOUT_MS - 1, false, NOW),
+    ).toBe(true);
+  });
+});
+
+describe("isSessionPastAbsoluteLimit", () => {
+  it("keeps a session with no start marker", () => {
+    expect(isSessionPastAbsoluteLimit(null, true, NOW)).toBe(false);
+    expect(isSessionPastAbsoluteLimit(0, false, NOW)).toBe(false);
+  });
+
+  it("caps a remembered session at 30 days", () => {
+    expect(
+      isSessionPastAbsoluteLimit(
+        NOW - REMEMBERED_SESSION_MAX_AGE_MS + 1,
+        true,
+        NOW,
+      ),
+    ).toBe(false);
+    expect(
+      isSessionPastAbsoluteLimit(
+        NOW - REMEMBERED_SESSION_MAX_AGE_MS - 1,
+        true,
+        NOW,
+      ),
+    ).toBe(true);
+  });
+
+  it("caps a session-only session at 24 hours", () => {
+    expect(
+      isSessionPastAbsoluteLimit(
+        NOW - EPHEMERAL_SESSION_MAX_AGE_MS + 1,
+        false,
+        NOW,
+      ),
+    ).toBe(false);
+    expect(
+      isSessionPastAbsoluteLimit(
+        NOW - EPHEMERAL_SESSION_MAX_AGE_MS - 1,
+        false,
+        NOW,
+      ),
+    ).toBe(true);
+  });
+});
+
+describe("isSessionExpired", () => {
+  it("keeps a fresh session", () => {
+    expect(
+      isSessionExpired(NOW - 60_000, NOW - 60_000, false, NOW),
+    ).toBe(false);
+    expect(
+      isSessionExpired(NOW - 24 * 60 * 60 * 1000, NOW - 60_000, true, NOW),
+    ).toBe(false);
+  });
+
+  it("expires on either limit", () => {
+    expect(
+      isSessionExpired(NOW - EPHEMERAL_IDLE_TIMEOUT_MS - 1, NOW, false, NOW),
+    ).toBe(true);
+    expect(
+      isSessionExpired(NOW, NOW - EPHEMERAL_SESSION_MAX_AGE_MS - 1, false, NOW),
+    ).toBe(true);
+    expect(
+      isSessionExpired(NOW, NOW - REMEMBERED_SESSION_MAX_AGE_MS - 1, true, NOW),
     ).toBe(true);
   });
 });
@@ -120,6 +190,22 @@ describe("authCookieOptions", () => {
     const options = authCookieOptions({ maxAge: 0 }, true, true);
 
     expect(options.maxAge).toBe(0);
+  });
+});
+
+describe("session marker cookies", () => {
+  it("stay session-only when remember me is off", () => {
+    expect(activityCookieOptions(false, true)).not.toHaveProperty("maxAge");
+    expect(startedCookieOptions(false, true)).not.toHaveProperty("maxAge");
+  });
+
+  it("last 30 days when remember me is on", () => {
+    expect(activityCookieOptions(true, false).maxAge).toBe(
+      REMEMBERED_SESSION_MAX_AGE_SECONDS,
+    );
+    expect(startedCookieOptions(true, false).maxAge).toBe(
+      REMEMBERED_SESSION_MAX_AGE_SECONDS,
+    );
   });
 });
 

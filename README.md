@@ -202,14 +202,19 @@ Supabase's own **leaked password protection** should also be enabled under
 
 ### Sessions
 
-SplitNest uses Supabase Auth cookies (`@supabase/ssr`) plus two tiny, non-secret
-markers (`sn-activity`, `sn-remember`). The proxy refreshes the token on every
-matched request and enforces inactivity:
+SplitNest uses Supabase Auth cookies (`@supabase/ssr`) plus three tiny,
+non-secret markers (`sn-activity`, `sn-remember`, `sn-started`). The proxy
+refreshes the token on every matched request and enforces inactivity plus a hard
+session limit:
 
-| Choice at sign-in | Cookie lifetime          | Idle timeout |
-| ----------------- | ------------------------ | ------------ |
-| **Keep me signed in** | 30 days               | 14 days      |
-| Unchecked         | Browser session only     | 12 hours     |
+| Choice at sign-in | Cookie lifetime          | Idle timeout | Hard limit |
+| ----------------- | ------------------------ | ------------ | ---------- |
+| **Keep me signed in** | 30 days               | 7 days       | 30 days    |
+| Unchecked (default) | Browser session only   | 30 minutes   | 24 hours   |
+
+Sessions created before these markers existed fall back to Supabase's last
+sign-in time, so a stricter policy takes effect on the next request instead of
+leaving an old session valid indefinitely.
 
 - **Sign out** in the topbar ends the session on this device (`scope: local`).
 - **Settings → Security → Sign out everywhere** revokes refresh tokens on every
@@ -360,7 +365,9 @@ supabase/migrations/           # SQL schema, RLS, functions
    automatic redirect. **Use another account** signs you out on the device.
 5. Sign in with **Keep me signed in** checked, close the browser, reopen it —
    you should still be signed in.
-6. Sign in with it unchecked; closing the browser should end the session.
+6. Sign in with it unchecked (the default); closing the browser should end the
+   session, and reloading `/dashboard` after 30 idle minutes should redirect to
+   `/login?error=session-expired`.
 7. Open **Settings → Security**; check provider, last sign-in, and
    **Sign out everywhere**.
 8. Click **Continue with Google** from login and signup; the Google account

@@ -37,7 +37,7 @@ interface GoogleSignInButtonProps {
 
 export function GoogleSignInButton({
   next = "/dashboard",
-  remember = true,
+  remember = false,
 }: GoogleSignInButtonProps) {
   const [state, formAction] = useActionState(
     signInWithGoogleAction,
