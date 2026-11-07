@@ -225,6 +225,12 @@ leaving an old session valid indefinitely.
 so letting the proxy run on the callback would break Google sign-in for anyone
 whose previous session had expired.
 
+Set `NEXT_PUBLIC_SITE_URL` to the public origin in production. Netlify rewrites
+`request.url` to its internal branch host (`main--<site>.netlify.app`), so
+callback redirects are built from this setting instead. Redirecting to the
+internal host would leave the new session cookie behind and make a successful
+confirmation or Google sign-in look like a sign-out.
+
 - **Sign out** in the topbar ends the session on this device (`scope: local`).
 - **Settings → Security → Sign out everywhere** revokes refresh tokens on every
   device (`scope: global`).
