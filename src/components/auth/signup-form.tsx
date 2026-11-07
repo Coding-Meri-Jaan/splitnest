@@ -8,6 +8,7 @@ import { AuthMessage } from "@/components/auth/auth-message";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 import { PasswordRequirements } from "@/components/auth/password-requirements";
 import { SubmitButton } from "@/components/auth/submit-button";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -167,13 +168,14 @@ export function SignupForm({ currentUser = null }: SignupFormProps) {
               </p>
             </form>
 
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={startOver}
-              className="w-full text-center text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+              className="w-full"
             >
               Use a different email address
-            </button>
+            </Button>
           </CardFooter>
         </>
       ) : (
