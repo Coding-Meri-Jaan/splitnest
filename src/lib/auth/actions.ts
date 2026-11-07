@@ -75,11 +75,16 @@ function cooldownState(seconds: number): AuthActionState {
  * address has just gone out. Show the same "check your inbox" screen as a
  * fresh signup (with the countdown), not the form the person just submitted.
  */
-function signupCooldownState(seconds: number, email: string): AuthActionState {
+function signupCooldownState(
+  seconds: number,
+  email: string,
+  clientToken: string,
+): AuthActionState {
   return {
     ...cooldownState(seconds),
     message: `We recently sent a confirmation link to ${email}. Open it to finish signing up. You can request another email once the countdown ends.`,
     signupComplete: true,
+    clientToken,
   };
 }
 
@@ -134,6 +139,7 @@ export async function signupAction(
   const email = normalizeEmail(readField(formData, "email"));
   const password = readSecret(formData, "password");
   const confirmPassword = readSecret(formData, "confirmPassword");
+  const clientToken = readField(formData, "clientToken").slice(0, 80);
 
   if (fullName.length < 2) {
     return { error: "Enter your name.", message: null };
@@ -192,7 +198,7 @@ export async function signupAction(
 
   const existingCooldown = await readEmailCooldownSeconds(email);
   if (existingCooldown > 0) {
-    return signupCooldownState(existingCooldown, email);
+    return signupCooldownState(existingCooldown, email, clientToken);
   }
 
   const siteUrl = await getSiteUrl();
@@ -209,7 +215,7 @@ export async function signupAction(
   if (error) {
     const cooldown = parseEmailCooldownSeconds(error.message);
     if (cooldown !== null) {
-      return signupCooldownState(cooldown, email);
+      return signupCooldownState(cooldown, email, clientToken);
     }
 
     const alreadyRegistered = /already registered|already exists/i.test(
@@ -265,6 +271,7 @@ export async function signupAction(
     message: `We sent a confirmation link to ${email}. Open it to finish signing up.`,
     cooldownSeconds: EMAIL_SEND_COOLDOWN_SECONDS,
     signupComplete: true,
+    clientToken,
   };
 }
 

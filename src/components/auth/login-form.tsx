@@ -241,12 +241,15 @@ export function LoginForm({ currentUser = null }: LoginFormProps) {
           <SubmitButton pendingLabel="Logging in…">Log in</SubmitButton>
           <p className="text-center text-sm text-muted-foreground">
             New to SplitNest?{" "}
-            <Link
+            {/* A full document load guarantees a clean signup form; a client
+                navigation can restore the previous address's confirmation
+                state from the router cache. */}
+            <a
               href="/signup"
               className="font-medium text-foreground underline-offset-4 hover:underline"
             >
               Create an account
-            </Link>
+            </a>
           </p>
         </CardFooter>
       </form>

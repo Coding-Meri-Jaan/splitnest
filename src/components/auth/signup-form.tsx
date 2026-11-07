@@ -28,6 +28,7 @@ import {
   MAX_PASSWORD_LENGTH,
   MIN_PASSWORD_LENGTH,
 } from "@/lib/auth/password";
+import { showsSignupConfirmation } from "@/lib/auth/signup-state";
 import {
   initialAuthState,
   type AuthActionState,
@@ -55,6 +56,11 @@ export function SignupForm({ currentUser = null }: SignupFormProps) {
   const [dismissedState, setDismissedState] = useState<AuthActionState | null>(
     null,
   );
+  // Each submit gets a fresh token that the server echoes back. A reply
+  // restored by the router after leaving the page carries an old token, so it
+  // can never show the previous address's confirmation screen again.
+  const [submissionToken, setSubmissionToken] = useState<string | null>(null);
+  const tokenInput = useRef<HTMLInputElement>(null);
   const {
     remainingSeconds,
     active,
@@ -67,12 +73,26 @@ export function SignupForm({ currentUser = null }: SignupFormProps) {
   // The success screen is tied to the address that was submitted. Once the
   // person asks to start over, hide that reply so a new address gets a clean
   // form instead of the previous address's confirmation screen.
-  const confirmed =
-    state.signupComplete === true && state !== dismissedState;
+  const confirmed = showsSignupConfirmation(
+    state,
+    submissionToken,
+    dismissedState,
+  );
 
   const startOver = () => {
     setDismissedState(state);
     setEmail("");
+  };
+
+  const handleSubmit = () => {
+    const token =
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : String(Date.now());
+    setSubmissionToken(token);
+    if (tokenInput.current) {
+      tokenInput.current.value = token;
+    }
   };
 
   useEffect(() => {
@@ -192,7 +212,8 @@ export function SignupForm({ currentUser = null }: SignupFormProps) {
             <span className="h-px flex-1 bg-border" />
           </div>
 
-          <form action={formAction}>
+          <form action={formAction} onSubmit={handleSubmit}>
+            <input type="hidden" name="clientToken" ref={tokenInput} />
             <CardContent className="space-y-4">
               <AuthMessage
                 error={state === dismissedState ? null : state.error}
@@ -277,12 +298,13 @@ export function SignupForm({ currentUser = null }: SignupFormProps) {
       <CardFooter className="flex flex-col gap-3 border-t pt-6">
         <p className="text-center text-sm text-muted-foreground">
           Already have an account?{" "}
-          <Link
+          {/* Full reload so the previous signup reply cannot be restored. */}
+          <a
             href="/login"
             className="font-medium text-foreground underline-offset-4 hover:underline"
           >
             Log in
-          </Link>
+          </a>
         </p>
       </CardFooter>
     </Card>

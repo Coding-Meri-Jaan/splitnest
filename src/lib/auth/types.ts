@@ -20,6 +20,12 @@ export interface AuthActionState {
   cooldownSeconds?: number | null;
   /** True once signup has sent a confirmation email for a pending account. */
   signupComplete?: boolean;
+  /**
+   * Echo of the signup form's per-submission token. It lets the form tell a
+   * reply from this visit apart from a router-restored reply from an earlier
+   * visit, so the old confirmation screen never reappears.
+   */
+  clientToken?: string | null;
 }
 
 export const initialAuthState: AuthActionState = { error: null, message: null };
