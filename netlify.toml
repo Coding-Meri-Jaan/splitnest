@@ -4,6 +4,9 @@
 
 [build.environment]
   NODE_VERSION = "22"
+  # Public project URL, safe to commit. File-based config overrides the site
+  # dashboard, which keeps a stale dashboard URL from being baked into builds.
+  NEXT_PUBLIC_SUPABASE_URL = "https://ormodcniraaxctqdxunz.supabase.co"
 
 # The Netlify Next.js Runtime handles App Router output in `.next`.
 # Netlify auto-installs it for projects that depend on `next`.
