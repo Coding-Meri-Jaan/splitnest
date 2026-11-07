@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 
 import { AuthMessage } from "@/components/auth/auth-message";
 import { SubmitButton } from "@/components/auth/submit-button";
@@ -18,18 +18,42 @@ import {
   resendVerificationAction,
   switchAccountAction,
 } from "@/lib/auth/actions";
-import { initialAuthState } from "@/lib/auth/types";
+import { formatCooldown } from "@/lib/auth/email-cooldown";
+import { initialAuthState, type AuthActionState } from "@/lib/auth/types";
+import { useEmailCooldown } from "@/lib/auth/use-email-cooldown";
 import { cn } from "@/lib/utils";
 
 interface VerifyEmailFormProps {
   email: string;
+  initialCooldownSeconds?: number;
 }
 
-export function VerifyEmailForm({ email }: VerifyEmailFormProps) {
+export function VerifyEmailForm({
+  email,
+  initialCooldownSeconds = 0,
+}: VerifyEmailFormProps) {
   const [state, formAction] = useActionState(
     resendVerificationAction,
     initialAuthState,
   );
+  const { remainingSeconds, active, start } = useEmailCooldown(
+    email,
+    initialCooldownSeconds,
+  );
+  const handledState = useRef<AuthActionState>(state);
+
+  useEffect(() => {
+    // A new state object means a new server reply, even when the cooldown
+    // happens to be the same number of seconds as last time.
+    if (handledState.current === state) {
+      return;
+    }
+
+    handledState.current = state;
+    if (state.cooldownSeconds) {
+      start(state.cooldownSeconds);
+    }
+  }, [state, start]);
 
   return (
     <Card className="border-border/70 shadow-sm">
@@ -45,16 +69,21 @@ export function VerifyEmailForm({ email }: VerifyEmailFormProps) {
         <AuthMessage error={state.error} message={state.message} />
         <p className="text-sm text-muted-foreground">
           Open the link in the confirmation email, then come back to this page.
-          If it never arrived, check spam or send a new one.
+          If it never arrived, check spam first — delivery can take a minute.
         </p>
       </CardContent>
 
       <CardFooter className="flex flex-col gap-3">
-        <form action={formAction} className="w-full">
+        <form action={formAction} className="w-full space-y-2">
           <input type="hidden" name="email" value={email} />
-          <SubmitButton pendingLabel="Sending…">
-            Resend confirmation email
+          <SubmitButton pendingLabel="Sending…" disabled={active}>
+            {active
+              ? `Resend in ${formatCooldown(remainingSeconds)}`
+              : "Resend confirmation email"}
           </SubmitButton>
+          <p className="text-center text-xs text-muted-foreground">
+            Emails to the same address can be resent once a minute.
+          </p>
         </form>
 
         <Link

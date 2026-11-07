@@ -119,9 +119,12 @@ npm run auth:configure
 
 The script sets `mailer_autoconfirm=false`, disables sign-in by unverified
 users, stores the SMTP credentials, keeps `/auth/confirm` in the redirect
-allow-list, and raises the auth email rate limit to 30/hour. It never prints
-secrets. `AUTH_REDIRECT_URLS` is replaced as a whole, so include every URL you
-need if you override it.
+allow-list, raises the auth email rate limit to 30/hour, and sets the
+per-address email cooldown (`smtp_max_frequency`) to 60 seconds. It never
+prints secrets. `AUTH_REDIRECT_URLS` is replaced as a whole, so include every
+URL you need if you override it. Change the cooldown with
+`AUTH_EMAIL_COOLDOWN_SECONDS` and keep it in sync with
+`EMAIL_SEND_COOLDOWN_SECONDS` in `src/lib/auth/email-cooldown.ts`.
 
 ### Google-only setup (no SMTP yet)
 
@@ -173,6 +176,14 @@ still log in.
 > **Link expired or lost?** Trying to log in with an unconfirmed address shows a
 > **Resend confirmation email** button right on the login screen, so nobody gets
 > locked out while waiting for a new link.
+>
+> **"Wait about a minute"?** Supabase allows one auth email per address per
+> `smtp_max_frequency` window (60 seconds by default). SplitNest treats that as
+> a countdown, not a failure: the resend button shows the remaining time, the
+> wait survives a reload, and the message points at the inbox and spam folder.
+> The server also records the send in an httpOnly `sn-email-sent` cookie and
+> clears it once the address is confirmed, so a double-click cannot burn a
+> request.
 
 ### Google sign-in
 

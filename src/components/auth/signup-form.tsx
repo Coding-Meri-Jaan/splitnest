@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 
 import { AuthMessage } from "@/components/auth/auth-message";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
@@ -17,15 +17,22 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { signupAction, switchAccountAction } from "@/lib/auth/actions";
+import {
+  resendVerificationAction,
+  signupAction,
+  switchAccountAction,
+} from "@/lib/auth/actions";
+import { formatCooldown } from "@/lib/auth/email-cooldown";
 import {
   MAX_PASSWORD_LENGTH,
   MIN_PASSWORD_LENGTH,
 } from "@/lib/auth/password";
 import {
   initialAuthState,
+  type AuthActionState,
   type CurrentSession,
 } from "@/lib/auth/types";
+import { useEmailCooldown } from "@/lib/auth/use-email-cooldown";
 
 interface SignupFormProps {
   currentUser?: CurrentSession | null;
@@ -39,9 +46,47 @@ const MESSAGES: Record<string, string> = {
 export function SignupForm({ currentUser = null }: SignupFormProps) {
   const searchParams = useSearchParams();
   const [state, formAction] = useActionState(signupAction, initialAuthState);
+  const [resendState, resendFormAction] = useActionState(
+    resendVerificationAction,
+    initialAuthState,
+  );
+  const [email, setEmail] = useState("");
+  const {
+    remainingSeconds,
+    active,
+    start,
+  } = useEmailCooldown(email);
+  const handledSignupState = useRef<AuthActionState>(state);
+  const handledResendState = useRef<AuthActionState>(resendState);
   const linkMessage = MESSAGES[searchParams.get("message") ?? ""] ?? null;
 
-  const confirmed = Boolean(state.message);
+  const confirmed = state.signupComplete === true;
+
+  useEffect(() => {
+    // Compare the state object, not the number: a repeat send can report the
+    // same 60 seconds and still needs a fresh countdown.
+    if (handledSignupState.current === state) {
+      return;
+    }
+
+    handledSignupState.current = state;
+    if (state.cooldownSeconds) {
+      start(state.cooldownSeconds);
+    }
+  }, [state, start]);
+
+  useEffect(() => {
+    if (handledResendState.current === resendState) {
+      return;
+    }
+
+    handledResendState.current = resendState;
+    if (resendState.cooldownSeconds) {
+      start(resendState.cooldownSeconds);
+    }
+  }, [resendState, start]);
+
+  const cooldownPending = !confirmed && active;
 
   return (
     <Card className="border-border/70 shadow-sm">
@@ -85,9 +130,34 @@ export function SignupForm({ currentUser = null }: SignupFormProps) {
       ) : null}
 
       {confirmed ? (
-        <CardContent>
-          <AuthMessage error={state.error} message={state.message} />
-        </CardContent>
+        <>
+          <CardContent className="space-y-4">
+            <AuthMessage error={state.error} message={state.message} />
+            <p className="text-sm text-muted-foreground">
+              Open the link in the confirmation email to finish creating your
+              account. Check your spam folder if it does not arrive within a
+              minute.
+            </p>
+          </CardContent>
+
+          <CardFooter className="flex flex-col gap-3">
+            <form action={resendFormAction} className="w-full space-y-2">
+              <input type="hidden" name="email" value={email} />
+              <AuthMessage
+                error={resendState.error}
+                message={resendState.message}
+              />
+              <SubmitButton pendingLabel="Sending…" disabled={active}>
+                {active
+                  ? `Resend in ${formatCooldown(remainingSeconds)}`
+                  : "Resend confirmation email"}
+              </SubmitButton>
+              <p className="text-center text-xs text-muted-foreground">
+                Emails to the same address can be resent once a minute.
+              </p>
+            </form>
+          </CardFooter>
+        </>
       ) : (
         <>
           <CardContent className="pb-0">
@@ -133,6 +203,8 @@ export function SignupForm({ currentUser = null }: SignupFormProps) {
                   type="email"
                   autoComplete="email"
                   placeholder="you@example.com"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
                   required
                 />
               </div>
@@ -171,8 +243,13 @@ export function SignupForm({ currentUser = null }: SignupFormProps) {
             </CardContent>
 
             <CardFooter className="mt-6">
-              <SubmitButton pendingLabel="Creating account…">
-                Create account
+              <SubmitButton
+                pendingLabel="Creating account…"
+                disabled={cooldownPending}
+              >
+                {cooldownPending
+                  ? `Try again in ${formatCooldown(remainingSeconds)}`
+                  : "Create account"}
               </SubmitButton>
             </CardFooter>
           </form>

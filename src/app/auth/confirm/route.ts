@@ -1,6 +1,7 @@
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { clearEmailSent } from "@/lib/auth/email-cooldown-server";
 import { markSessionActive } from "@/lib/auth/session-server";
 import { getSiteUrl, safePath } from "@/lib/auth/site-url";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -37,9 +38,10 @@ export async function GET(request: NextRequest) {
   const supabase = await createSupabaseServerClient({ remember });
 
   if (code) {
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
       await markSessionActive(remember);
+      await clearEmailSent(data.user?.email);
       return go(next);
     }
 
@@ -54,12 +56,13 @@ export async function GET(request: NextRequest) {
   }
 
   if (tokenHash && type) {
-    const { error } = await supabase.auth.verifyOtp({
+    const { data, error } = await supabase.auth.verifyOtp({
       type,
       token_hash: tokenHash,
     });
     if (!error) {
       await markSessionActive(remember);
+      await clearEmailSent(data.user?.email);
       return go(next);
     }
 

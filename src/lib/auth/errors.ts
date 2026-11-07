@@ -1,3 +1,8 @@
+import {
+  cooldownMessage,
+  parseEmailCooldownSeconds,
+} from "./email-cooldown";
+
 export interface AuthErrorLike {
   message: string;
   status?: number;
@@ -33,11 +38,9 @@ export function describeAuthError(
   ) {
     return "Google sign-in is not enabled yet. Turn on the Google provider under Supabase → Authentication → Sign In / Providers.";
   }
-  if (
-    message.includes("for security purposes") ||
-    message.includes("only request this after")
-  ) {
-    return "Please wait about a minute before requesting another email for this address.";
+  const cooldown = parseEmailCooldownSeconds(error.message);
+  if (cooldown !== null) {
+    return cooldownMessage(cooldown);
   }
   if (
     message.includes("rate limit") ||

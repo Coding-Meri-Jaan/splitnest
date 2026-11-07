@@ -13,6 +13,15 @@ import {
   validateEmail,
 } from "./email";
 import { describeAuthError } from "./errors";
+import {
+  EMAIL_SEND_COOLDOWN_SECONDS,
+  cooldownMessage,
+  parseEmailCooldownSeconds,
+} from "./email-cooldown";
+import {
+  markEmailSent,
+  readEmailCooldownSeconds,
+} from "./email-cooldown-server";
 import { validatePassword } from "./password";
 import {
   emailSignupSafety,
@@ -43,6 +52,22 @@ function readSecret(formData: FormData, name: string): string {
 function readRemember(formData: FormData): boolean {
   const value = formData.get("remember");
   return value === "1" || value === "on" || value === "true";
+}
+
+/**
+ * The per-address cooldown is not a failure - the previous email is still on
+ * its way. Return it as a status message with the exact seconds so the UI can
+ * show a countdown instead of a red error.
+ */
+function cooldownState(seconds: number): AuthActionState {
+  const safe = Math.max(1, Math.ceil(seconds));
+
+  return {
+    error: null,
+    message: cooldownMessage(safe),
+    errorCode: "email_cooldown",
+    cooldownSeconds: safe,
+  };
 }
 
 export async function loginAction(
@@ -152,6 +177,11 @@ export async function signupAction(
     };
   }
 
+  const existingCooldown = await readEmailCooldownSeconds(email);
+  if (existingCooldown > 0) {
+    return cooldownState(existingCooldown);
+  }
+
   const siteUrl = await getSiteUrl();
   const supabase = await createSupabaseServerClient({ remember: true });
   const { data, error } = await supabase.auth.signUp({
@@ -164,6 +194,11 @@ export async function signupAction(
   });
 
   if (error) {
+    const cooldown = parseEmailCooldownSeconds(error.message);
+    if (cooldown !== null) {
+      return cooldownState(cooldown);
+    }
+
     const alreadyRegistered = /already registered|already exists/i.test(
       error.message,
     );
@@ -210,9 +245,13 @@ export async function signupAction(
     };
   }
 
+  await markEmailSent(email);
+
   return {
     error: null,
     message: `We sent a confirmation link to ${email}. Open it to finish signing up.`,
+    cooldownSeconds: EMAIL_SEND_COOLDOWN_SECONDS,
+    signupComplete: true,
   };
 }
 
@@ -389,6 +428,11 @@ export async function resendVerificationAction(
     };
   }
 
+  const existingCooldown = await readEmailCooldownSeconds(email);
+  if (existingCooldown > 0) {
+    return cooldownState(existingCooldown);
+  }
+
   const siteUrl = await getSiteUrl();
   const { error } = await supabase.auth.resend({
     type: "signup",
@@ -399,6 +443,11 @@ export async function resendVerificationAction(
   });
 
   if (error) {
+    const cooldown = parseEmailCooldownSeconds(error.message);
+    if (cooldown !== null) {
+      return cooldownState(cooldown);
+    }
+
     return {
       error: describeAuthError(
         error,
@@ -408,9 +457,12 @@ export async function resendVerificationAction(
     };
   }
 
+  await markEmailSent(email);
+
   return {
     error: null,
     message: `Confirmation email sent to ${email}. Check your inbox.`,
+    cooldownSeconds: EMAIL_SEND_COOLDOWN_SECONDS,
   };
 }
 

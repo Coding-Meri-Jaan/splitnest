@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { VerifyEmailForm } from "@/components/auth/verify-email-form";
+import { readEmailCooldownSeconds } from "@/lib/auth/email-cooldown-server";
 import { getOptionalUser } from "@/lib/auth/user";
 
 export const metadata: Metadata = {
@@ -32,5 +33,12 @@ async function VerifyEmailScreen() {
     redirect("/dashboard");
   }
 
-  return <VerifyEmailForm email={user.email} />;
+  const initialCooldownSeconds = await readEmailCooldownSeconds(user.email);
+
+  return (
+    <VerifyEmailForm
+      email={user.email}
+      initialCooldownSeconds={initialCooldownSeconds}
+    />
+  );
 }

@@ -35,6 +35,9 @@
  *   AUTH_EMAIL_RATE_LIMIT   auth emails per hour, default 30. Supabase keeps
  *                           the built-in 2/hour cap even after custom SMTP is
  *                           connected until this setting is raised.
+ *   AUTH_EMAIL_COOLDOWN_SECONDS
+ *                           per-address wait between auth emails, default 60.
+ *                           The app mirrors this window in its resend UI.
  *   AUTH_REDIRECT_URLS      comma-separated; defaults to <site>/auth/confirm
  *                           plus http://localhost:3000/auth/confirm
  */
@@ -78,6 +81,9 @@ const siteUrl = value("AUTH_SITE_URL").replace(/\/+$/, "");
 const smtpPort = value("AUTH_SMTP_PORT") || "587";
 const senderName = value("AUTH_SMTP_SENDER_NAME") || "SplitNest";
 const emailRateLimit = Number(value("AUTH_EMAIL_RATE_LIMIT") || "30");
+const emailCooldownSeconds = Number(
+  value("AUTH_EMAIL_COOLDOWN_SECONDS") || "60",
+);
 const googleClientId = value("GOOGLE_CLIENT_ID");
 const googleClientSecret = value("GOOGLE_CLIENT_SECRET");
 
@@ -104,6 +110,14 @@ if (!googleOnly && (!smtpHost || !smtpUser || !smtpPass || !smtpFrom)) {
 }
 if (!googleOnly && (!Number.isInteger(emailRateLimit) || emailRateLimit < 1)) {
   fail("AUTH_EMAIL_RATE_LIMIT must be a whole number of emails per hour, for example 30.");
+}
+if (
+  !googleOnly &&
+  (!Number.isInteger(emailCooldownSeconds) || emailCooldownSeconds < 1)
+) {
+  fail(
+    "AUTH_EMAIL_COOLDOWN_SECONDS must be a whole number of seconds, for example 60.",
+  );
 }
 
 const redirects =
@@ -139,6 +153,9 @@ if (!googleOnly) {
   // email quota on its own. Leaving it at 2/hour makes real signups fail as
   // soon as a couple of confirmation emails have been sent.
   payload.rate_limit_email_sent = emailRateLimit;
+  // One message per address per window. The app shows this as a live
+  // countdown instead of letting people hit a permanent-looking error.
+  payload.smtp_max_frequency = emailCooldownSeconds;
 }
 
 console.log(`\nProject: ${ref}`);
@@ -148,6 +165,11 @@ if (!googleOnly) {
   console.log(`SMTP: ${smtpHost}:${smtpPort} as ${smtpUser}`);
   console.log(`Sender: ${senderName} <${smtpFrom}>`);
   console.log(`Email rate limit: ${emailRateLimit}/hour`);
+  console.log(
+    `Per-address email cooldown: ${emailCooldownSeconds} second${
+      emailCooldownSeconds === 1 ? "" : "s"
+    }`,
+  );
 }
 if (googleConfigured) {
   console.log(`Google client: ${googleClientId}`);
@@ -211,6 +233,7 @@ console.log(
       smtp_host: config.smtp_host,
       smtp_admin_email: config.smtp_admin_email,
       rate_limit_email_sent: config.rate_limit_email_sent,
+      smtp_max_frequency: config.smtp_max_frequency,
       external_email_enabled: config.external_email_enabled,
       external_google_enabled: config.external_google_enabled,
       site_url: config.site_url,

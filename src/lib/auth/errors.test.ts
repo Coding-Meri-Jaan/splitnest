@@ -35,7 +35,9 @@ describe("describeAuthError", () => {
       "fallback",
     );
 
-    expect(message).toMatch(/wait about a minute/i);
+    expect(message).toMatch(/42 seconds/);
+    expect(message).toMatch(/inbox/i);
+    expect(message).toMatch(/spam/i);
     expect(message).not.toMatch(/per hour/i);
   });
 

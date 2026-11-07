@@ -13,6 +13,7 @@ interface SubmitButtonProps {
   pendingLabel?: string;
   className?: string;
   variant?: ButtonVariant;
+  disabled?: boolean;
 }
 
 export function SubmitButton({
@@ -20,6 +21,7 @@ export function SubmitButton({
   pendingLabel = "Please wait",
   className = "w-full",
   variant = "default",
+  disabled = false,
 }: SubmitButtonProps) {
   const { pending } = useFormStatus();
 
@@ -28,7 +30,7 @@ export function SubmitButton({
       type="submit"
       variant={variant}
       className={className}
-      disabled={pending}
+      disabled={pending || disabled}
     >
       {pending ? (
         <>

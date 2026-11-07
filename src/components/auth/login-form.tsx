@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 
 import { AuthMessage } from "@/components/auth/auth-message";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
@@ -21,13 +21,19 @@ import {
   resendVerificationAction,
   switchAccountAction,
 } from "@/lib/auth/actions";
+import { formatCooldown } from "@/lib/auth/email-cooldown";
 import { safePath } from "@/lib/auth/safe-path";
 import {
   EPHEMERAL_IDLE_TIMEOUT_MS,
   REMEMBERED_IDLE_TIMEOUT_MS,
   REMEMBERED_SESSION_MAX_AGE_SECONDS,
 } from "@/lib/auth/session";
-import { initialAuthState, type CurrentSession } from "@/lib/auth/types";
+import {
+  initialAuthState,
+  type AuthActionState,
+  type CurrentSession,
+} from "@/lib/auth/types";
+import { useEmailCooldown } from "@/lib/auth/use-email-cooldown";
 
 interface LoginFormProps {
   currentUser?: CurrentSession | null;
@@ -57,6 +63,25 @@ export function LoginForm({ currentUser = null }: LoginFormProps) {
   );
   const [remember, setRemember] = useState(false);
   const [email, setEmail] = useState("");
+  const {
+    remainingSeconds: resendRemaining,
+    active: resendActive,
+    start: startResendCooldown,
+  } = useEmailCooldown(email);
+  const handledResendState = useRef<AuthActionState>(resendState);
+
+  useEffect(() => {
+    // The state object is new for every reply, so a second send with the same
+    // number of seconds still restarts the countdown.
+    if (handledResendState.current === resendState) {
+      return;
+    }
+
+    handledResendState.current = resendState;
+    if (resendState.cooldownSeconds) {
+      startResendCooldown(resendState.cooldownSeconds);
+    }
+  }, [resendState, startResendCooldown]);
 
   const next = safePath(searchParams.get("next"));
   const linkError = LINK_ERRORS[searchParams.get("error") ?? ""] ?? null;
@@ -156,10 +181,17 @@ export function LoginForm({ currentUser = null }: LoginFormProps) {
                 type="submit"
                 formAction={resendFormAction}
                 formNoValidate
-                className="font-medium text-foreground underline-offset-4 hover:underline"
+                disabled={resendActive}
+                className="font-medium text-foreground underline-offset-4 hover:underline disabled:cursor-not-allowed disabled:text-muted-foreground disabled:no-underline"
               >
-                Resend confirmation email
+                {resendActive
+                  ? `Resend in ${formatCooldown(resendRemaining)}`
+                  : "Resend confirmation email"}
               </button>
+              <p className="text-xs text-muted-foreground">
+                Emails to the same address can be resent once a minute. Check
+                your inbox and spam folder first.
+              </p>
             </div>
           ) : null}
 
