@@ -119,6 +119,24 @@ export function SignupForm({ currentUser = null }: SignupFormProps) {
     }
   }, [resendState, start]);
 
+  useEffect(() => {
+    // A page restored from the back/forward cache keeps the DOM and state it
+    // had when the person left. Drop the previous reply on a restore so going
+    // Back never resurrects the old address's confirmation screen.
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (!event.persisted) {
+        return;
+      }
+
+      setSubmissionToken(null);
+      setDismissedState(null);
+      setEmail("");
+    };
+
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
+
   return (
     <Card className="border-border/70 shadow-sm">
       <CardHeader>
