@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "auth:configure": "node --env-file=.env.local scripts/configure-auth.mjs"
+    "auth:configure": "node --env-file=.env.local scripts/configure-auth.mjs",
+    "auth:reverify": "node --env-file=.env.local scripts/reverify-email-users.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

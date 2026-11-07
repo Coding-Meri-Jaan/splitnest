@@ -130,7 +130,7 @@ export async function GET() {
   }
   if (report.emailConfirmationRequired) {
     steps.push(
-      "Email confirmation is ON. Make sure custom SMTP is configured, otherwise Supabase's built-in sender only reaches organization team addresses and is rate-limited.",
+      "Email confirmation is ON, so unconfirmed accounts cannot sign in. Test one real signup to confirm the verification email arrives; if it does not, configure custom SMTP under Authentication → SMTP.",
     );
   } else if (report.emailConfirmationRequired === false) {
     steps.push(

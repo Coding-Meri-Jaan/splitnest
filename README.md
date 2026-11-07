@@ -87,9 +87,20 @@ SplitNest still validates the address first (format, placeholder local parts,
 disposable domains, reserved TLDs, DNS MX/A), but only a delivered confirmation
 link proves the inbox exists.
 
-> **Accounts created before this gate** may already be auto-confirmed fakes.
-> Delete them in **Authentication → Users** (or provide a service-role key and
-> remove them with the admin API). The gate only prevents new ones.
+> **Accounts created before this gate** were auto-confirmed, so their addresses
+> were never proven. Google-linked accounts are already verified by Google.
+> Email-only accounts can be forced through real verification without deleting
+> their data:
+>
+> ```bash
+> npm run auth:reverify -- --dry-run   # list who needs it, no changes
+> npm run auth:reverify -- --apply     # clear + send a fresh link
+> ```
+>
+> The script only runs after Confirm email and custom SMTP are configured. It
+> skips Google-linked accounts, and if a confirmation email cannot be sent it
+> restores that account's previous confirmation so nobody is locked out.
+> Accounts that never open the new link stay unconfirmed and cannot sign in.
 
 ### One-command setup (recommended)
 
