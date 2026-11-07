@@ -44,6 +44,8 @@ const LINK_ERRORS: Record<string, string> = {
   "session-expired":
     "Your session expired after a period of inactivity. Sign in again.",
   oauth: "Google sign-in didn't finish. Please try again.",
+  "oauth-failed":
+    "Google sign-in could not be completed because the sign-in request expired. Please try again.",
 };
 
 const MESSAGES: Record<string, string> = {

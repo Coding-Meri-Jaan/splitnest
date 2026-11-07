@@ -33,6 +33,15 @@ export async function GET(request: NextRequest) {
       await markSessionActive(remember);
       return NextResponse.redirect(new URL(next, origin));
     }
+
+    // The code arrives from Google/OAuth, so "expired email link" would be
+    // misleading. The code and verifier are single-use; a retry is the fix.
+    console.error("[auth] OAuth code exchange failed", {
+      code: error.code,
+      status: error.status,
+      message: error.message,
+    });
+    return NextResponse.redirect(new URL("/login?error=oauth-failed", origin));
   }
 
   if (tokenHash && type) {
@@ -44,6 +53,12 @@ export async function GET(request: NextRequest) {
       await markSessionActive(remember);
       return NextResponse.redirect(new URL(next, origin));
     }
+
+    console.error("[auth] email link verification failed", {
+      code: error.code,
+      status: error.status,
+      message: error.message,
+    });
   }
 
   return NextResponse.redirect(new URL("/login?error=expired-link", origin));

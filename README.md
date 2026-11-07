@@ -216,6 +216,11 @@ Sessions created before these markers existed fall back to Supabase's last
 sign-in time, so a stricter policy takes effect on the next request instead of
 leaving an old session valid indefinitely.
 
+`/auth/confirm` is intentionally excluded from the proxy matcher. Supabase's
+`getUser()` deletes every in-flight PKCE verifier when it sees a dead session,
+so letting the proxy run on the callback would break Google sign-in for anyone
+whose previous session had expired.
+
 - **Sign out** in the topbar ends the session on this device (`scope: local`).
 - **Settings → Security → Sign out everywhere** revokes refresh tokens on every
   device (`scope: global`).
