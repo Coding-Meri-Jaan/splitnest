@@ -51,6 +51,9 @@ export function SignupForm({ currentUser = null }: SignupFormProps) {
     initialAuthState,
   );
   const [email, setEmail] = useState("");
+  const [dismissedState, setDismissedState] = useState<AuthActionState | null>(
+    null,
+  );
   const {
     remainingSeconds,
     active,
@@ -60,7 +63,17 @@ export function SignupForm({ currentUser = null }: SignupFormProps) {
   const handledResendState = useRef<AuthActionState>(resendState);
   const linkMessage = MESSAGES[searchParams.get("message") ?? ""] ?? null;
 
-  const confirmed = state.signupComplete === true;
+  // The success screen is tied to the address that was submitted. Once the
+  // person asks to start over, hide that reply so a new address gets a clean
+  // form instead of the previous address's confirmation screen.
+  const confirmed =
+    state.signupComplete === true && state !== dismissedState;
+
+  const startOver = () => {
+    setDismissedState(state);
+    setEmail("");
+  };
+
   useEffect(() => {
     // Compare the state object, not the number: a repeat send can report the
     // same 60 seconds and still needs a fresh countdown.
@@ -153,6 +166,14 @@ export function SignupForm({ currentUser = null }: SignupFormProps) {
                 Emails to the same address can be resent once a minute.
               </p>
             </form>
+
+            <button
+              type="button"
+              onClick={startOver}
+              className="w-full text-center text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            >
+              Use a different email address
+            </button>
           </CardFooter>
         </>
       ) : (
@@ -172,8 +193,11 @@ export function SignupForm({ currentUser = null }: SignupFormProps) {
           <form action={formAction}>
             <CardContent className="space-y-4">
               <AuthMessage
-                error={state.error}
-                message={state.message ?? linkMessage}
+                error={state === dismissedState ? null : state.error}
+                message={
+                  (state === dismissedState ? null : state.message) ??
+                  linkMessage
+                }
               />
 
               <div className="space-y-2">
