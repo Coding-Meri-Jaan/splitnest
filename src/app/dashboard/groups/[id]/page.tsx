@@ -36,6 +36,7 @@ interface GroupPageProps {
     settled?: string;
     updated?: string;
     deleted?: string;
+    deleteError?: string;
   }>;
 }
 
@@ -70,6 +71,14 @@ async function GroupContent({ params, searchParams }: GroupPageProps) {
             : query.deleted === "settlement"
               ? "Settlement deleted."
               : null;
+  const deleteError =
+    query.deleteError === "expense"
+      ? "Could not delete that expense. It may have already been removed — refresh the page and check again."
+      : query.deleteError === "settlement"
+        ? "Could not delete that settlement. It may have already been removed — refresh the page and check again."
+        : query.deleteError === "invalid"
+          ? "That delete request was invalid. Refresh the page and try again."
+          : null;
 
   return (
     <div className="space-y-6">
@@ -89,6 +98,15 @@ async function GroupContent({ params, searchParams }: GroupPageProps) {
           className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400"
         >
           {confirmation}
+        </p>
+      ) : null}
+
+      {deleteError ? (
+        <p
+          role="alert"
+          className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+        >
+          {deleteError}
         </p>
       ) : null}
 

@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 };
 
 interface GroupsPageProps {
-  searchParams: Promise<{ deleted?: string; left?: string }>;
+  searchParams: Promise<{ deleted?: string; left?: string; deleteError?: string }>;
 }
 
 export default function GroupsPage({ searchParams }: GroupsPageProps) {
@@ -48,6 +48,10 @@ async function GroupsList({ searchParams }: GroupsPageProps) {
       : query.left === "1"
         ? "You left the group."
         : null;
+  const deleteError =
+    query.deleteError === "invalid"
+      ? "That delete request was invalid. Refresh the page and try again."
+      : null;
 
   return (
     <div className="space-y-4">
@@ -57,6 +61,15 @@ async function GroupsList({ searchParams }: GroupsPageProps) {
           className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400"
         >
           {notice}
+        </p>
+      ) : null}
+
+      {deleteError ? (
+        <p
+          role="alert"
+          className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+        >
+          {deleteError}
         </p>
       ) : null}
 

@@ -175,12 +175,13 @@ export async function updateGroupAction(
     return { error: "Only the group owner can rename this group.", message: null };
   }
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("groups")
     .update({ name, emoji })
-    .eq("id", groupId);
+    .eq("id", groupId)
+    .select("id");
 
-  if (error) {
+  if (error || !data || data.length === 0) {
     return { error: "Could not update the group. Please try again.", message: null };
   }
 
@@ -223,22 +224,29 @@ export async function addMemberAction(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  await getCurrentUser();
+  const user = await getCurrentUser();
   const groupId = text(formData, "groupId");
   const email = text(formData, "email").toLowerCase();
 
-  if (!groupId || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  if (!isUuid(groupId)) {
+    return { error: "That group could not be found.", message: null };
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return { error: "Enter a valid email address.", message: null };
   }
 
   const supabase = await createSupabaseServerClient();
+  if ((await membershipRole(supabase, groupId, user.id)) !== "owner") {
+    return { error: "Only the group owner can add members.", message: null };
+  }
+
   const { data: matches, error: lookupError } = await supabase.rpc(
     "find_user_for_invite",
     { gid: groupId, lookup_email: email },
   );
 
   if (lookupError) {
-    return { error: "Only the group owner can add members.", message: null };
+    return { error: "Could not look up that email. Please try again.", message: null };
   }
 
   const match = matches?.[0];
@@ -336,6 +344,12 @@ export async function removeMemberAction(
     revalidatePath("/dashboard/activity");
     revalidatePath("/dashboard/people");
     redirect("/dashboard/groups?left=1");
+  }
+
+  // RLS can silently filter a delete. Confirm the membership really went away
+  // before telling the owner it succeeded.
+  if (await membershipRole(supabase, groupId, memberId)) {
+    return { error: "Could not remove that member.", message: null };
   }
 
   revalidateGroup(groupId);
@@ -542,13 +556,22 @@ export async function updateExpenseAction(
     };
   }
 
-  const { error: deleteError } = await supabase
+  const { data: removed, error: deleteError } = await supabase
     .from("expenses")
     .delete()
-    .eq("id", expenseId);
+    .eq("id", expenseId)
+    .eq("group_id", input.groupId)
+    .select("id");
 
-  if (deleteError) {
-    await supabase.from("expenses").delete().eq("id", createdId);
+  // If the old row could not be removed, roll the new row back rather than
+  // leaving two copies of the same expense in the group.
+  if (deleteError || !removed || removed.length === 0) {
+    await supabase
+      .from("expenses")
+      .delete()
+      .eq("id", createdId)
+      .eq("group_id", input.groupId)
+      .select("id");
     return { error: "Could not update the expense. Please try again.", message: null };
   }
 
@@ -569,7 +592,12 @@ export async function recordSettlementAction(
   const note = text(formData, "note");
   const settledAt = text(formData, "settledAt");
 
-  if (!groupId || !fromUser || !toUser || fromUser === toUser) {
+  if (
+    !isUuid(groupId) ||
+    !isUuid(fromUser) ||
+    !isUuid(toUser) ||
+    fromUser === toUser
+  ) {
     return { error: "Choose who paid whom.", message: null };
   }
   if (!amountPaise) {
@@ -580,6 +608,15 @@ export async function recordSettlementAction(
   }
 
   const supabase = await createSupabaseServerClient();
+  const [fromRole, toRole] = await Promise.all([
+    membershipRole(supabase, groupId, fromUser),
+    membershipRole(supabase, groupId, toUser),
+  ]);
+
+  if (!fromRole || !toRole) {
+    return { error: "Both people must belong to this group.", message: null };
+  }
+
   const { error } = await supabase.from("settlements").insert({
     group_id: groupId,
     from_user: fromUser,
@@ -604,15 +641,31 @@ export async function deleteExpenseAction(formData: FormData): Promise<void> {
   const expenseId = text(formData, "expenseId");
   const groupId = text(formData, "groupId");
 
-  if (!isUuid(expenseId) || !isUuid(groupId)) return;
+  if (!isUuid(groupId)) {
+    redirect("/dashboard/groups?deleteError=invalid");
+  }
+  if (!isUuid(expenseId)) {
+    redirect(`/dashboard/groups/${groupId}?deleteError=expense`);
+  }
 
   const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.from("expenses").delete().eq("id", expenseId);
+  // Ask PostgREST to return the deleted row. RLS silently filters rows a user
+  // may not delete, so an empty result means the delete did not happen. Without
+  // this check the action would claim success while the expense remained.
+  const { data, error } = await supabase
+    .from("expenses")
+    .delete()
+    .eq("id", expenseId)
+    .eq("group_id", groupId)
+    .select("id");
 
   revalidateGroup(groupId);
-  if (!error) {
-    redirect(`/dashboard/groups/${groupId}?deleted=expense`);
+
+  if (error || !data || data.length === 0) {
+    redirect(`/dashboard/groups/${groupId}?deleteError=expense`);
   }
+
+  redirect(`/dashboard/groups/${groupId}?deleted=expense`);
 }
 
 export async function deleteSettlementAction(formData: FormData): Promise<void> {
@@ -620,19 +673,28 @@ export async function deleteSettlementAction(formData: FormData): Promise<void> 
   const settlementId = text(formData, "settlementId");
   const groupId = text(formData, "groupId");
 
-  if (!isUuid(settlementId) || !isUuid(groupId)) return;
+  if (!isUuid(groupId)) {
+    redirect("/dashboard/groups?deleteError=invalid");
+  }
+  if (!isUuid(settlementId)) {
+    redirect(`/dashboard/groups/${groupId}?deleteError=settlement`);
+  }
 
   const supabase = await createSupabaseServerClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("settlements")
     .delete()
     .eq("id", settlementId)
-    .eq("group_id", groupId);
+    .eq("group_id", groupId)
+    .select("id");
 
   revalidateGroup(groupId);
-  if (!error) {
-    redirect(`/dashboard/groups/${groupId}?deleted=settlement`);
+
+  if (error || !data || data.length === 0) {
+    redirect(`/dashboard/groups/${groupId}?deleteError=settlement`);
   }
+
+  redirect(`/dashboard/groups/${groupId}?deleted=settlement`);
 }
 
 export async function updateProfileAction(
