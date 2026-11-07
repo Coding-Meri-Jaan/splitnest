@@ -208,15 +208,30 @@ export async function deleteGroupAction(
   }
 
   // Return the deleted row so an RLS-filtered no-op is reported as a failure
-  // instead of redirecting as if the group had been removed.
+  // instead of redirecting as if the group had been removed. An empty result
+  // is not enough on its own: deleting the group also cascades away the
+  // membership rows the SELECT policy depends on, so the returning row can be
+  // filtered even when the delete succeeded. Confirm the row is actually gone.
   const { data: deleted, error } = await supabase
     .from("groups")
     .delete()
     .eq("id", groupId)
     .select("id");
 
-  if (error || !deleted || deleted.length === 0) {
+  if (error) {
     return { error: "Could not delete the group. Please try again.", message: null };
+  }
+
+  if (!deleted || deleted.length === 0) {
+    const { data: stillThere } = await supabase
+      .from("groups")
+      .select("id")
+      .eq("id", groupId)
+      .maybeSingle();
+
+    if (stillThere) {
+      return { error: "Could not delete the group. Please try again.", message: null };
+    }
   }
 
   revalidatePath("/dashboard");
