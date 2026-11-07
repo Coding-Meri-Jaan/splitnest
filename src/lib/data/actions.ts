@@ -207,9 +207,15 @@ export async function deleteGroupAction(
     return { error: "Only the group owner can delete this group.", message: null };
   }
 
-  const { error } = await supabase.from("groups").delete().eq("id", groupId);
+  // Return the deleted row so an RLS-filtered no-op is reported as a failure
+  // instead of redirecting as if the group had been removed.
+  const { data: deleted, error } = await supabase
+    .from("groups")
+    .delete()
+    .eq("id", groupId)
+    .select("id");
 
-  if (error) {
+  if (error || !deleted || deleted.length === 0) {
     return { error: "Could not delete the group. Please try again.", message: null };
   }
 

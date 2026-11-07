@@ -42,6 +42,7 @@ export async function GET() {
       "10+ characters with uppercase, lowercase, number, and symbol; common passwords blocked",
     tables: {} as Record<string, string>,
     splitSchema: "skipped" as string,
+    notes: [] as string[],
     nextStep: "",
   };
 
@@ -122,15 +123,17 @@ export async function GET() {
   const steps: string[] = [];
   if (report.urlLooksLikeDashboard) {
     steps.push(
-      "NEXT_PUBLIC_SUPABASE_URL is the dashboard URL; the app recovered automatically but set it to https://<project-ref>.supabase.co.",
+      "NEXT_PUBLIC_SUPABASE_URL is the dashboard URL. The app recovers automatically, but set it to https://<project-ref>.supabase.co in your host's environment variables to clear this warning.",
     );
   }
   if (report.auth !== "ok") {
     steps.push("Auth endpoint unreachable. Check the project URL and anon key.");
   }
   if (report.emailConfirmationRequired) {
-    steps.push(
-      "Email confirmation is ON, so unconfirmed accounts cannot sign in. Test one real signup to confirm the verification email arrives; if it does not, configure custom SMTP under Authentication → SMTP.",
+    // Confirmation is the intended state for this app, so it is a note rather
+    // than a problem to fix. Verified delivery is covered by a real signup.
+    report.notes.push(
+      "Email confirmation is ON, so unconfirmed accounts cannot sign in until they open the verification link.",
     );
   } else if (report.emailConfirmationRequired === false) {
     steps.push(
