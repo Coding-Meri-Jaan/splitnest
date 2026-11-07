@@ -57,6 +57,8 @@ export function MemberManageList({
                     variant="ghost"
                     size="sm"
                     disabled={pending}
+                    confirmLabel={isSelf ? "Leave group" : "Remove member"}
+                    confirmTitle={isSelf ? "Leave this group?" : `Remove ${member.name}?`}
                     confirmMessage={
                       isSelf
                         ? "Leave this group? The owner can add you back later."

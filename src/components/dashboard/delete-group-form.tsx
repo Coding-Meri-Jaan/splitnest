@@ -25,6 +25,8 @@ export function DeleteGroupForm({ groupId, groupName }: DeleteGroupFormProps) {
       </p>
       <ConfirmSubmitButton
         variant="destructive"
+        confirmLabel="Delete group"
+        confirmTitle={`Delete "${groupName}"?`}
         confirmMessage={`Delete "${groupName}" and all of its expenses? This cannot be undone.`}
       >
         Delete group
