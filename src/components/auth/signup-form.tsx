@@ -61,7 +61,6 @@ export function SignupForm({ currentUser = null }: SignupFormProps) {
   const linkMessage = MESSAGES[searchParams.get("message") ?? ""] ?? null;
 
   const confirmed = state.signupComplete === true;
-
   useEffect(() => {
     // Compare the state object, not the number: a repeat send can report the
     // same 60 seconds and still needs a fresh countdown.
@@ -85,8 +84,6 @@ export function SignupForm({ currentUser = null }: SignupFormProps) {
       start(resendState.cooldownSeconds);
     }
   }, [resendState, start]);
-
-  const cooldownPending = !confirmed && active;
 
   return (
     <Card className="border-border/70 shadow-sm">
@@ -243,13 +240,8 @@ export function SignupForm({ currentUser = null }: SignupFormProps) {
             </CardContent>
 
             <CardFooter className="mt-6">
-              <SubmitButton
-                pendingLabel="Creating account…"
-                disabled={cooldownPending}
-              >
-                {cooldownPending
-                  ? `Try again in ${formatCooldown(remainingSeconds)}`
-                  : "Create account"}
+              <SubmitButton pendingLabel="Creating account…">
+                Create account
               </SubmitButton>
             </CardFooter>
           </form>

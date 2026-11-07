@@ -70,6 +70,19 @@ function cooldownState(seconds: number): AuthActionState {
   };
 }
 
+/**
+ * A signup inside the cooldown window means a confirmation email for this
+ * address has just gone out. Show the same "check your inbox" screen as a
+ * fresh signup (with the countdown), not the form the person just submitted.
+ */
+function signupCooldownState(seconds: number, email: string): AuthActionState {
+  return {
+    ...cooldownState(seconds),
+    message: `We recently sent a confirmation link to ${email}. Open it to finish signing up. You can request another email once the countdown ends.`,
+    signupComplete: true,
+  };
+}
+
 export async function loginAction(
   _previous: AuthActionState,
   formData: FormData,
@@ -179,7 +192,7 @@ export async function signupAction(
 
   const existingCooldown = await readEmailCooldownSeconds(email);
   if (existingCooldown > 0) {
-    return cooldownState(existingCooldown);
+    return signupCooldownState(existingCooldown, email);
   }
 
   const siteUrl = await getSiteUrl();
@@ -196,7 +209,7 @@ export async function signupAction(
   if (error) {
     const cooldown = parseEmailCooldownSeconds(error.message);
     if (cooldown !== null) {
-      return cooldownState(cooldown);
+      return signupCooldownState(cooldown, email);
     }
 
     const alreadyRegistered = /already registered|already exists/i.test(
