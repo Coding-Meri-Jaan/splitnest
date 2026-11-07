@@ -118,9 +118,10 @@ npm run auth:configure
 ```
 
 The script sets `mailer_autoconfirm=false`, disables sign-in by unverified
-users, stores the SMTP credentials, and keeps `/auth/confirm` in the redirect
-allow-list. It never prints secrets. `AUTH_REDIRECT_URLS` is replaced as a
-whole, so include every URL you need if you override it.
+users, stores the SMTP credentials, keeps `/auth/confirm` in the redirect
+allow-list, and raises the auth email rate limit to 30/hour. It never prints
+secrets. `AUTH_REDIRECT_URLS` is replaced as a whole, so include every URL you
+need if you override it.
 
 ### Google-only setup (no SMTP yet)
 
@@ -157,9 +158,12 @@ still log in.
 > **Auto Confirm User** enabled, or use Google. Do not turn Confirm email off
 > on a project you deploy.
 
-> **Hitting "email rate limit exceeded"?** Supabase's built-in sender hit its
-> cap. Wait about an hour, or configure custom SMTP. The app shows a hint that
-> points here.
+> **Hitting "email rate limit exceeded"?** Custom SMTP makes the email quota
+> configurable, but Supabase keeps the built-in **2/hour** cap until you raise
+> it. Set `Authentication → Rate Limits → Emails per hour` (30 is a good start),
+> or add `AUTH_EMAIL_RATE_LIMIT=30` to `.env.local` and rerun
+> `npm run auth:configure`. Waiting up to an hour also clears the current
+> window.
 >
 > **Emails never arrive?** That is almost always the built-in mailer. Custom
 > SMTP reaches everyone. Supabase applies a default limit of 30 messages per

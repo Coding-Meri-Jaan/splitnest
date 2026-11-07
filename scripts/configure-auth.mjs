@@ -32,6 +32,9 @@
  *   SUPABASE_PROJECT_REF    derived from NEXT_PUBLIC_SUPABASE_URL when absent
  *   AUTH_SMTP_PORT          default 587
  *   AUTH_SMTP_SENDER_NAME   default "SplitNest"
+ *   AUTH_EMAIL_RATE_LIMIT   auth emails per hour, default 30. Supabase keeps
+ *                           the built-in 2/hour cap even after custom SMTP is
+ *                           connected until this setting is raised.
  *   AUTH_REDIRECT_URLS      comma-separated; defaults to <site>/auth/confirm
  *                           plus http://localhost:3000/auth/confirm
  */
@@ -74,6 +77,7 @@ const smtpFrom = value("AUTH_SMTP_FROM");
 const siteUrl = value("AUTH_SITE_URL").replace(/\/+$/, "");
 const smtpPort = value("AUTH_SMTP_PORT") || "587";
 const senderName = value("AUTH_SMTP_SENDER_NAME") || "SplitNest";
+const emailRateLimit = Number(value("AUTH_EMAIL_RATE_LIMIT") || "30");
 const googleClientId = value("GOOGLE_CLIENT_ID");
 const googleClientSecret = value("GOOGLE_CLIENT_SECRET");
 
@@ -97,6 +101,9 @@ if (!googleOnly && (!smtpHost || !smtpUser || !smtpPass || !smtpFrom)) {
   fail(
     "AUTH_SMTP_HOST, AUTH_SMTP_USER, AUTH_SMTP_PASS, and AUTH_SMTP_FROM are required. Connect an SMTP provider first (SendGrid, Brevo, Resend, Postmark, SES), or use --google-only.",
   );
+}
+if (!googleOnly && (!Number.isInteger(emailRateLimit) || emailRateLimit < 1)) {
+  fail("AUTH_EMAIL_RATE_LIMIT must be a whole number of emails per hour, for example 30.");
 }
 
 const redirects =
@@ -127,6 +134,11 @@ if (!googleOnly) {
   payload.smtp_pass = smtpPass;
   payload.smtp_admin_email = smtpFrom;
   payload.smtp_sender_name = senderName;
+
+  // Custom SMTP lifts the built-in sender, but Supabase does not raise the
+  // email quota on its own. Leaving it at 2/hour makes real signups fail as
+  // soon as a couple of confirmation emails have been sent.
+  payload.rate_limit_email_sent = emailRateLimit;
 }
 
 console.log(`\nProject: ${ref}`);
@@ -135,6 +147,7 @@ console.log(`Mode: ${googleOnly ? "Google only" : "Google + verified email"}`);
 if (!googleOnly) {
   console.log(`SMTP: ${smtpHost}:${smtpPort} as ${smtpUser}`);
   console.log(`Sender: ${senderName} <${smtpFrom}>`);
+  console.log(`Email rate limit: ${emailRateLimit}/hour`);
 }
 if (googleConfigured) {
   console.log(`Google client: ${googleClientId}`);
@@ -197,6 +210,7 @@ console.log(
         config.mailer_allow_unverified_email_sign_ins,
       smtp_host: config.smtp_host,
       smtp_admin_email: config.smtp_admin_email,
+      rate_limit_email_sent: config.rate_limit_email_sent,
       external_email_enabled: config.external_email_enabled,
       external_google_enabled: config.external_google_enabled,
       site_url: config.site_url,

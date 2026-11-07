@@ -15,14 +15,28 @@ describe("describeAuthError", () => {
     expect(message).toMatch(/confirmation link/i);
   });
 
-  it("explains the built-in email rate limit", () => {
+  it("explains the project email rate limit", () => {
     const message = describeAuthError(
       { message: "email rate limit exceeded", status: 429 },
       "Could not create your account.",
     );
 
-    expect(message).toMatch(/rate limit/i);
+    expect(message).toMatch(/per hour/i);
     expect(message).toMatch(/SMTP/i);
+  });
+
+  it("explains the per-address cooldown separately", () => {
+    const message = describeAuthError(
+      {
+        message:
+          "For security purposes, you can only request this after 42 seconds.",
+        status: 429,
+      },
+      "fallback",
+    );
+
+    expect(message).toMatch(/wait about a minute/i);
+    expect(message).not.toMatch(/per hour/i);
   });
 
   it("keeps the fallback for invalid credentials", () => {

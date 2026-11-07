@@ -34,12 +34,18 @@ export function describeAuthError(
     return "Google sign-in is not enabled yet. Turn on the Google provider under Supabase → Authentication → Sign In / Providers.";
   }
   if (
+    message.includes("for security purposes") ||
+    message.includes("only request this after")
+  ) {
+    return "Please wait about a minute before requesting another email for this address.";
+  }
+  if (
     message.includes("rate limit") ||
     message.includes("too many") ||
     error.code === "over_email_send_rate_limit" ||
     error.code === "over_request_rate_limit"
   ) {
-    return "Supabase's email service hit its rate limit. Wait about an hour, or connect your own SMTP provider under Supabase → Authentication → Emails → SMTP Settings.";
+    return "Too many sign-in emails were sent from this project in the last hour. Wait up to an hour and try again. If you run SplitNest, raise Authentication → Rate Limits → Emails per hour — custom SMTP allows more than the built-in 2/hour.";
   }
   if (
     message.includes("weak password") ||
