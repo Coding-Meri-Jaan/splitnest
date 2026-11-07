@@ -228,9 +228,11 @@ whose previous session had expired.
 - **Sign out** in the topbar ends the session on this device (`scope: local`).
 - **Settings → Security → Sign out everywhere** revokes refresh tokens on every
   device (`scope: global`).
-- Opening `/login` while signed in does **not** silently skip the form: it shows
-  who you are signed in as, with **Continue**, **Verify email**, and **Use
-  another account** options.
+- Opening `/login` or `/signup` while signed in does **not** silently skip the
+  form: it shows who you are signed in as, with **Continue**, **Verify email**,
+  and **Use another account** options. **Use another account** returns to the
+  screen you were on, signed out locally, so a confirmation link for a second
+  account never leaves you stuck on the dashboard.
 
 ## 4. Run it
 
@@ -370,8 +372,9 @@ supabase/migrations/           # SQL schema, RLS, functions
 2. Sign up with a weak password (`password123`); the requirement list and the
    error should explain what is missing.
 3. Sign up with a real address, confirm the email, and land on `/dashboard`.
-4. Visit `/login` while signed in; you should see the account chooser, not an
-   automatic redirect. **Use another account** signs you out on the device.
+4. Visit `/login` and `/signup` while signed in; each should show the account
+   chooser instead of an automatic redirect. **Use another account** signs you
+   out on the device and returns you to the same auth screen.
 5. Sign in with **Keep me signed in** checked, close the browser, reopen it —
    you should still be signed in.
 6. Sign in with it unchecked (the default); closing the browser should end the

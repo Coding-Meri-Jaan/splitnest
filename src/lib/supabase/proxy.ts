@@ -4,6 +4,12 @@ import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "@/types/database";
 
 import {
+  PROTECTED_PREFIXES,
+  SIGNED_IN_REDIRECT_PREFIXES,
+  UNVERIFIED_REDIRECT_PREFIXES,
+  pathMatches,
+} from "@/lib/auth/route-rules";
+import {
   SESSION_ACTIVITY_COOKIE,
   SESSION_REMEMBER_COOKIE,
   SESSION_STARTED_COOKIE,
@@ -17,13 +23,6 @@ import {
 } from "@/lib/auth/session";
 
 import { getSupabaseEnv, isSupabaseConfigured } from "./env";
-
-const PROTECTED_PREFIXES = ["/dashboard", "/verify-email"];
-const AUTH_ROUTES_REDIRECTED_WHEN_SIGNED_IN = [
-  "/signup",
-  "/forgot-password",
-  "/verify-email",
-];
 
 /**
  * Refreshes the Supabase session cookie on every request and performs
@@ -102,9 +101,7 @@ export async function updateSession(request: NextRequest) {
   // fail closed instead of granting an indefinite session.
   const effectiveRemembered = remembered && startedMarker !== null;
 
-  const isProtected = PROTECTED_PREFIXES.some((prefix) =>
-    pathname.startsWith(prefix),
-  );
+  const isProtected = pathMatches(pathname, PROTECTED_PREFIXES);
   const isConfirmationRoute = pathname.startsWith("/auth/confirm");
   const isPasswordReset = pathname.startsWith("/reset-password");
 
@@ -142,12 +139,7 @@ export async function updateSession(request: NextRequest) {
   if (user && !emailVerified) {
     // Email confirmation is the real anti-fake-address gate. The auth/confirm
     // route itself must be reachable so the link can be exchanged first.
-    const needsVerification =
-      pathname.startsWith("/dashboard") ||
-      pathname.startsWith("/signup") ||
-      pathname.startsWith("/forgot-password");
-
-    if (needsVerification) {
+    if (pathMatches(pathname, UNVERIFIED_REDIRECT_PREFIXES)) {
       return redirectTo(request, response, "/verify-email");
     }
   }
@@ -155,9 +147,7 @@ export async function updateSession(request: NextRequest) {
   if (
     user &&
     emailVerified &&
-    AUTH_ROUTES_REDIRECTED_WHEN_SIGNED_IN.some((route) =>
-      pathname.startsWith(route),
-    )
+    pathMatches(pathname, SIGNED_IN_REDIRECT_PREFIXES)
   ) {
     return redirectTo(request, response, "/dashboard");
   }

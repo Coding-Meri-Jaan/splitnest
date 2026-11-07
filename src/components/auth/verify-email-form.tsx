@@ -14,7 +14,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { logoutAction, resendVerificationAction } from "@/lib/auth/actions";
+import {
+  resendVerificationAction,
+  switchAccountAction,
+} from "@/lib/auth/actions";
 import { initialAuthState } from "@/lib/auth/types";
 import { cn } from "@/lib/utils";
 
@@ -61,12 +64,12 @@ export function VerifyEmailForm({ email }: VerifyEmailFormProps) {
           I&apos;ve confirmed my email
         </Link>
 
-        <form action={logoutAction} className="w-full">
+        <form action={switchAccountAction} className="w-full">
           <button
             type="submit"
             className="w-full text-center text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
           >
-            Use a different account
+            Sign in with a different account
           </button>
         </form>
       </CardFooter>

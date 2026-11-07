@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useActionState } from "react";
 
 import { AuthMessage } from "@/components/auth/auth-message";
@@ -16,15 +17,29 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { signupAction } from "@/lib/auth/actions";
+import { signupAction, switchAccountAction } from "@/lib/auth/actions";
 import {
   MAX_PASSWORD_LENGTH,
   MIN_PASSWORD_LENGTH,
 } from "@/lib/auth/password";
-import { initialAuthState } from "@/lib/auth/types";
+import {
+  initialAuthState,
+  type CurrentSession,
+} from "@/lib/auth/types";
 
-export function SignupForm() {
+interface SignupFormProps {
+  currentUser?: CurrentSession | null;
+}
+
+const MESSAGES: Record<string, string> = {
+  "switched-account":
+    "You've been signed out on this device. Create your account below or log in with another one.",
+};
+
+export function SignupForm({ currentUser = null }: SignupFormProps) {
+  const searchParams = useSearchParams();
   const [state, formAction] = useActionState(signupAction, initialAuthState);
+  const linkMessage = MESSAGES[searchParams.get("message") ?? ""] ?? null;
 
   const confirmed = Boolean(state.message);
 
@@ -34,6 +49,40 @@ export function SignupForm() {
         <CardTitle className="font-heading text-2xl">Create your account</CardTitle>
         <CardDescription>Free to start, no card needed.</CardDescription>
       </CardHeader>
+
+      {currentUser ? (
+        <div className="mx-6 mb-4 rounded-lg border border-border/70 bg-muted/40 px-3 py-3 text-sm">
+          <p>
+            You&apos;re already signed in as{" "}
+            <span className="font-medium">{currentUser.email}</span>
+            {currentUser.emailVerified ? null : (
+              <span className="text-muted-foreground"> (email not verified)</span>
+            )}
+            .
+          </p>
+          <p className="mt-1 text-muted-foreground">
+            Create a new account below, or switch so the two do not get mixed
+            up.
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
+            <Link
+              href={currentUser.emailVerified ? "/dashboard" : "/verify-email"}
+              className="font-medium text-foreground underline-offset-4 hover:underline"
+            >
+              {currentUser.emailVerified ? "Continue to dashboard" : "Verify email"}
+            </Link>
+            <form action={switchAccountAction}>
+              <input type="hidden" name="returnTo" value="signup" />
+              <button
+                type="submit"
+                className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+              >
+                Use another account
+              </button>
+            </form>
+          </div>
+        </div>
+      ) : null}
 
       {confirmed ? (
         <CardContent>
@@ -55,7 +104,10 @@ export function SignupForm() {
 
           <form action={formAction}>
             <CardContent className="space-y-4">
-              <AuthMessage error={state.error} message={state.message} />
+              <AuthMessage
+                error={state.error}
+                message={state.message ?? linkMessage}
+              />
 
               <div className="space-y-2">
                 <label htmlFor="fullName" className="text-sm font-medium">

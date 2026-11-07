@@ -27,13 +27,7 @@ import {
   REMEMBERED_IDLE_TIMEOUT_MS,
   REMEMBERED_SESSION_MAX_AGE_SECONDS,
 } from "@/lib/auth/session";
-import { initialAuthState } from "@/lib/auth/types";
-
-export interface CurrentSession {
-  email: string;
-  fullName: string;
-  emailVerified: boolean;
-}
+import { initialAuthState, type CurrentSession } from "@/lib/auth/types";
 
 interface LoginFormProps {
   currentUser?: CurrentSession | null;

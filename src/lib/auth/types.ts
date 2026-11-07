@@ -1,3 +1,10 @@
+/** Who the browser is currently signed in as, for the auth screens. */
+export interface CurrentSession {
+  email: string;
+  fullName: string;
+  emailVerified: boolean;
+}
+
 export interface AuthActionState {
   error: string | null;
   message: string | null;

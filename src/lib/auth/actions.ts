@@ -425,13 +425,22 @@ export async function signOutEverywhereAction(): Promise<void> {
   redirect("/login?message=signed-out-everywhere");
 }
 
-/** Sign out the current browser so a different account can sign in. */
+/**
+ * Sign out the current browser so a different account can sign in.
+ *
+ * `returnTo` is deliberately a two-value allow-list rather than a free path:
+ * the action only ever sends the browser back to a known auth screen after it
+ * has just cleared the session. `next` still uses `safePath` and keeps any
+ * deeper destination the person was heading for.
+ */
 export async function switchAccountAction(formData: FormData): Promise<void> {
   await performSignOut("local");
   const next = safePath(formData.get("next"));
-  redirect(
-    `/login?message=switched-account&next=${encodeURIComponent(next)}`,
-  );
+  const returnTo =
+    formData.get("returnTo") === "signup" ? "/signup" : "/login";
+  const params = new URLSearchParams({ message: "switched-account" });
+  params.set("next", next);
+  redirect(`${returnTo}?${params.toString()}`);
 }
 
 async function performSignOut(scope: "local" | "global"): Promise<void> {
