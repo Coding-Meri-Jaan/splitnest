@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { FormEvent } from "react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -53,5 +53,30 @@ describe("ConfirmSubmitButton", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Delete" }));
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+  });
+
+  it("uses the caller's title and pending label for non-delete actions", async () => {
+    render(
+      <form onSubmit={(event) => event.preventDefault()}>
+        <ConfirmSubmitButton
+          confirmMessage="Every device will be signed out."
+          confirmTitle="Sign out everywhere?"
+          confirmLabel="Sign out everywhere"
+          pendingLabel="Signing out…"
+        >
+          Sign out everywhere
+        </ConfirmSubmitButton>
+      </form>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Sign out everywhere" }));
+
+    expect(await screen.findByText("Sign out everywhere?")).toBeTruthy();
+    const dialog = screen.getByRole("alertdialog");
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Sign out everywhere" }),
+    );
+
+    expect(await within(dialog).findByText("Signing out…")).toBeTruthy();
   });
 });

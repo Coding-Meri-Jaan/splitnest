@@ -15,6 +15,8 @@ interface ConfirmSubmitButtonProps extends Omit<ButtonProps, "type"> {
   confirmLabel?: string;
   /** Heading of the confirmation dialog. */
   confirmTitle?: string;
+  /** Label shown on the confirm button while the form submits. */
+  pendingLabel?: string;
 }
 
 /**
@@ -29,6 +31,7 @@ export function ConfirmSubmitButton({
   confirmMessage,
   confirmLabel = "Delete",
   confirmTitle = "Are you sure?",
+  pendingLabel = "Deleting…",
   onClick,
   children,
   disabled,
@@ -81,7 +84,7 @@ export function ConfirmSubmitButton({
                 />
               }
             >
-              {submitting ? "Deleting…" : confirmLabel}
+              {submitting ? pendingLabel : confirmLabel}
             </AlertDialog.Close>
           </div>
         </AlertDialog.Popup>

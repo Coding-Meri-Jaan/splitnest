@@ -1,6 +1,7 @@
 "use client";
 
 import { SubmitButton } from "@/components/auth/submit-button";
+import { ConfirmSubmitButton } from "@/components/shared/confirm-submit-button";
 import {
   logoutAction,
   signOutEverywhereAction,
@@ -85,25 +86,17 @@ export function SecuritySettings({
           </SubmitButton>
         </form>
 
-        <form
-          action={signOutEverywhereAction}
-          onSubmit={(event) => {
-            if (
-              !window.confirm(
-                "Sign out everywhere? Every browser and device signed in to this account will need to log in again.",
-              )
-            ) {
-              event.preventDefault();
-            }
-          }}
-        >
-          <SubmitButton
+        <form action={signOutEverywhereAction}>
+          <ConfirmSubmitButton
             variant="destructive"
             className="w-auto"
-            pendingLabel="Signing out everywhere…"
+            confirmLabel="Sign out everywhere"
+            confirmTitle="Sign out everywhere?"
+            confirmMessage="Every browser and device signed in to this account will need to log in again."
+            pendingLabel="Signing out…"
           >
             Sign out everywhere
-          </SubmitButton>
+          </ConfirmSubmitButton>
         </form>
       </div>
 
