@@ -26,9 +26,10 @@ export function ResetPasswordForm() {
   const [state, formAction] = useActionState(updatePasswordAction, initialAuthState);
 
   return (
-    <Card className="border-border/70 shadow-sm">
+    <Card className="sn-glass rounded-3xl">
       <CardHeader>
-        <CardTitle className="font-heading text-2xl">Choose a new password</CardTitle>
+        <p className="sn-eyebrow">Almost there</p>
+        <CardTitle className="font-heading text-3xl tracking-tight">Choose a new password</CardTitle>
         <CardDescription>You&apos;ll be signed in after saving.</CardDescription>
       </CardHeader>
 

@@ -160,30 +160,36 @@ export function WhoOwesWhom({
       </CardHeader>
 
       <CardContent className="space-y-4">
-        <dl className="flex flex-wrap items-start gap-x-6 gap-y-2">
-          <div className="space-y-0.5">
-            <dt className="text-xs text-muted-foreground">Owed to you</dt>
-            <dd>
+        <dl className="grid grid-cols-3 gap-2">
+          <div className="rounded-xl bg-success/8 px-3 py-2.5 ring-1 ring-success/15">
+            <dt className="text-[0.65rem] font-medium tracking-wide text-muted-foreground uppercase">
+              Owed to you
+            </dt>
+            <dd className="mt-1">
               <Amount
                 value={totals.owedToYou}
                 signed={false}
-                className="text-emerald-600 dark:text-emerald-400"
+                className="text-success"
               />
             </dd>
           </div>
-          <div className="space-y-0.5">
-            <dt className="text-xs text-muted-foreground">You owe</dt>
-            <dd>
+          <div className="rounded-xl bg-destructive/8 px-3 py-2.5 ring-1 ring-destructive/15">
+            <dt className="text-[0.65rem] font-medium tracking-wide text-muted-foreground uppercase">
+              You owe
+            </dt>
+            <dd className="mt-1">
               <Amount
                 value={totals.youOwe}
                 signed={false}
-                className="text-rose-600 dark:text-rose-400"
+                className="text-destructive"
               />
             </dd>
           </div>
-          <div className="space-y-0.5">
-            <dt className="text-xs text-muted-foreground">Net</dt>
-            <dd>
+          <div className="rounded-xl bg-muted/70 px-3 py-2.5 ring-1 ring-border/60">
+            <dt className="text-[0.65rem] font-medium tracking-wide text-muted-foreground uppercase">
+              Net
+            </dt>
+            <dd className="mt-1">
               <Amount value={totals.net} />
             </dd>
           </div>
@@ -196,7 +202,7 @@ export function WhoOwesWhom({
             </label>
             <SearchIcon
               aria-hidden
-              className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
+              className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground"
             />
             <Input
               id={searchId}
@@ -204,7 +210,7 @@ export function WhoOwesWhom({
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search by name or email"
-              className="pl-8"
+              className="pl-10"
             />
           </div>
         ) : null}
@@ -244,18 +250,18 @@ export function WhoOwesWhom({
         </p>
 
         {filteredPeople.length === 0 ? (
-          <p className="rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+          <p className="rounded-xl border border-dashed border-border/70 px-4 py-8 text-center text-sm text-muted-foreground">
             {emptyText}
           </p>
         ) : (
-          <ul className="divide-y">
+          <ul className="space-y-1.5">
             {filteredPeople.map((person) => {
               const meta = personMeta(person);
 
               return (
                 <li
                   key={person.id}
-                  className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                  className="flex items-center justify-between gap-3 rounded-xl border border-transparent px-2.5 py-3 transition-colors hover:border-border/60 hover:bg-foreground/[0.03]"
                 >
                   <div className="flex min-w-0 items-center gap-3">
                     <MemberAvatar name={person.name} size="sm" />

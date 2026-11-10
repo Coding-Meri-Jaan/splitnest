@@ -55,23 +55,23 @@ export function SecuritySettings({
   return (
     <div className="space-y-5">
       <dl className="grid gap-3 text-sm sm:grid-cols-2">
-        <div>
-          <dt className="text-muted-foreground">Email</dt>
-          <dd className="break-all font-medium">{email}</dd>
+        <div className="rounded-xl border border-border/50 bg-muted/30 px-3.5 py-3">
+          <dt className="text-xs text-muted-foreground">Email</dt>
+          <dd className="mt-0.5 break-all font-medium">{email}</dd>
         </div>
-        <div>
-          <dt className="text-muted-foreground">Email status</dt>
-          <dd className="font-medium">
+        <div className="rounded-xl border border-border/50 bg-muted/30 px-3.5 py-3">
+          <dt className="text-xs text-muted-foreground">Email status</dt>
+          <dd className="mt-0.5 font-medium">
             {emailVerified ? "Confirmed" : "Not confirmed"}
           </dd>
         </div>
-        <div>
-          <dt className="text-muted-foreground">Sign-in method</dt>
-          <dd className="font-medium">{providerLabel(provider)}</dd>
+        <div className="rounded-xl border border-border/50 bg-muted/30 px-3.5 py-3">
+          <dt className="text-xs text-muted-foreground">Sign-in method</dt>
+          <dd className="mt-0.5 font-medium">{providerLabel(provider)}</dd>
         </div>
-        <div>
-          <dt className="text-muted-foreground">Last sign-in</dt>
-          <dd className="font-medium">{formatDate(lastSignInAt)}</dd>
+        <div className="rounded-xl border border-border/50 bg-muted/30 px-3.5 py-3">
+          <dt className="text-xs text-muted-foreground">Last sign-in</dt>
+          <dd className="mt-0.5 font-medium">{formatDate(lastSignInAt)}</dd>
         </div>
       </dl>
 
@@ -100,7 +100,7 @@ export function SecuritySettings({
         </form>
       </div>
 
-      <p className="text-xs text-muted-foreground">
+      <p className="pt-1 text-xs leading-relaxed text-muted-foreground">
         Sessions refresh automatically. A remembered session lasts up to{" "}
         {rememberedDays} days and ends after {days(REMEMBERED_IDLE_TIMEOUT_MS)}{" "}
         days without activity. Without &ldquo;Keep me signed in&rdquo;, the

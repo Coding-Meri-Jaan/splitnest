@@ -56,9 +56,10 @@ export function VerifyEmailForm({
   }, [state, start]);
 
   return (
-    <Card className="border-border/70 shadow-sm">
+    <Card className="sn-glass rounded-3xl">
       <CardHeader>
-        <CardTitle className="font-heading text-2xl">Confirm your email</CardTitle>
+        <p className="sn-eyebrow">One last step</p>
+        <CardTitle className="font-heading text-3xl tracking-tight">Confirm your email</CardTitle>
         <CardDescription>
           We need to confirm that <span className="font-medium">{email}</span> is
           yours before you can open your nests.

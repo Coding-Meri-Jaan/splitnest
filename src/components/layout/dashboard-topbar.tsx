@@ -2,12 +2,19 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { BellIcon, ChevronDownIcon, LogOutIcon, MenuIcon, SearchIcon, SettingsIcon } from "lucide-react";
+import {
+  BellIcon,
+  ChevronDownIcon,
+  LogOutIcon,
+  MenuIcon,
+  SearchIcon,
+  SettingsIcon,
+} from "lucide-react";
 
 import { SidebarNav } from "@/components/layout/dashboard-sidebar";
 import { Logo } from "@/components/shared/logo";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { MemberAvatar } from "@/components/shared/member-avatar";
+import { buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,7 +33,6 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { logoutAction } from "@/lib/auth/actions";
-import { getInitials } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 interface DashboardTopbarProps {
@@ -42,7 +48,7 @@ export function DashboardTopbar({ user }: DashboardTopbarProps) {
   const label = user.fullName || "Your account";
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-background/80 px-4 backdrop-blur md:px-6">
+    <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border/50 bg-background/55 px-4 backdrop-blur-xl md:px-8">
       {/*
         Submit the server action through a real form. Calling the action
         directly from onClick can race with the menu closing and leave the
@@ -60,7 +66,7 @@ export function DashboardTopbar({ user }: DashboardTopbarProps) {
           <MenuIcon />
         </SheetTrigger>
         <SheetContent side="left" className="w-72 p-0">
-          <SheetHeader className="border-b">
+          <SheetHeader className="border-b border-border/60">
             <SheetTitle className="flex items-center">
               <Logo />
             </SheetTitle>
@@ -74,33 +80,47 @@ export function DashboardTopbar({ user }: DashboardTopbarProps) {
       </Link>
 
       <div className="relative hidden max-w-sm flex-1 items-center sm:flex">
-        <SearchIcon className="pointer-events-none absolute left-2.5 size-4 text-muted-foreground" />
+        <SearchIcon className="pointer-events-none absolute left-3.5 size-4 text-muted-foreground" />
         <Input
           type="search"
           aria-label="Search"
           placeholder="Search expenses, groups, people"
-          className="pl-8"
+          className="h-9 rounded-full border-border/60 bg-card/60 pl-10 shadow-none"
           disabled
         />
       </div>
 
       <div className="ml-auto flex items-center gap-1.5">
-        <Button variant="ghost" size="icon-sm" aria-label="Notifications" disabled>
-          <BellIcon />
-        </Button>
+        <span className="relative">
+          <span
+            aria-hidden
+            className="absolute top-1.5 right-1.5 z-10 size-1.5 rounded-full bg-brand shadow-[0_0_8px_var(--brand)]"
+          />
+          <button
+            type="button"
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "icon-sm" }),
+              "text-muted-foreground"
+            )}
+            aria-label="Notifications"
+            disabled
+          >
+            <BellIcon />
+          </button>
+        </span>
 
         <DropdownMenu>
-          <DropdownMenuTrigger className="flex items-center gap-2 rounded-lg px-1.5 py-1 transition-colors hover:bg-muted">
-            <Avatar size="sm">
-              <AvatarFallback>{getInitials(label)}</AvatarFallback>
-            </Avatar>
+          <DropdownMenuTrigger className="group flex items-center gap-2 rounded-full border border-transparent py-1 pr-2 pl-1 transition-colors hover:border-border/70 hover:bg-card/70 focus-visible:ring-4 focus-visible:ring-ring/20 focus-visible:outline-none">
+            <MemberAvatar name={label} size="sm" />
             <span className="hidden text-sm font-medium sm:inline">{label}</span>
-            <ChevronDownIcon className="hidden size-4 text-muted-foreground sm:inline" />
+            <ChevronDownIcon className="hidden size-4 text-muted-foreground transition-transform group-aria-expanded:rotate-180 sm:inline" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="min-w-48">
+          <DropdownMenuContent align="end" className="min-w-56">
             {/* Base UI's GroupLabel throws when it is not inside a Group. */}
             <DropdownMenuGroup>
-              <DropdownMenuLabel>{user.email}</DropdownMenuLabel>
+              <DropdownMenuLabel className="truncate">
+                {user.email}
+              </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem render={<Link href="/dashboard/settings" />}>
                 <SettingsIcon />

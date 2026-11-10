@@ -17,7 +17,7 @@ interface NewExpensePageProps {
 
 export default function NewExpensePage({ params }: NewExpensePageProps) {
   return (
-    <Suspense fallback={<div className="h-96 animate-pulse rounded-xl bg-muted" />}>
+    <Suspense fallback={<div className="h-96 sn-skeleton rounded-2xl" />}>
       <NewExpenseContent params={params} />
     </Suspense>
   );
@@ -49,6 +49,7 @@ async function NewExpenseContent({ params }: NewExpensePageProps) {
       </Button>
 
       <PageHeader
+        eyebrow="New expense"
         title="Add expense"
         description="Split it equally, by exact amounts, by percentages, or by shares."
       />

@@ -10,15 +10,15 @@ interface AmountProps {
 export function Amount({ value, className, signed = true }: AmountProps) {
   const tone =
     value > 0
-      ? "text-emerald-600 dark:text-emerald-400"
+      ? "text-success"
       : value < 0
-        ? "text-rose-600 dark:text-rose-400"
+        ? "text-destructive"
         : "text-muted-foreground";
 
   return (
     <span
       className={cn(
-        "font-medium tabular-nums",
+        "font-semibold tabular-nums",
         signed && tone,
         className
       )}

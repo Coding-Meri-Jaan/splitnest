@@ -17,7 +17,7 @@ interface SettlePageProps {
 
 export default function SettlePage({ params }: SettlePageProps) {
   return (
-    <Suspense fallback={<div className="h-96 animate-pulse rounded-xl bg-muted" />}>
+    <Suspense fallback={<div className="h-96 sn-skeleton rounded-2xl" />}>
       <SettleContent params={params} />
     </Suspense>
   );
@@ -49,6 +49,7 @@ async function SettleContent({ params }: SettlePageProps) {
       </Button>
 
       <PageHeader
+        eyebrow="Settle up"
         title="Record a settlement"
         description="Log money that has already changed hands, in cash or over UPI."
       />

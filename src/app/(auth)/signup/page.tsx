@@ -12,7 +12,7 @@ export default function SignupPage() {
   return (
     <Suspense
       fallback={
-        <div className="h-[620px] rounded-xl border border-border/70 bg-card" />
+        <div className="h-[680px] sn-skeleton rounded-3xl" />
       }
     >
       <SignupScreen />

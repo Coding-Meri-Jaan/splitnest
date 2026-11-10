@@ -96,14 +96,17 @@ export function LoginForm({ currentUser = null }: LoginFormProps) {
   );
 
   return (
-    <Card className="border-border/70 shadow-sm">
+    <Card className="sn-glass rounded-3xl">
       <CardHeader>
-        <CardTitle className="font-heading text-2xl">Welcome back</CardTitle>
-        <CardDescription>Log in to see who owes whom.</CardDescription>
+        <p className="sn-eyebrow">Welcome back</p>
+        <CardTitle className="font-heading text-3xl tracking-tight">
+          Log in to your nest
+        </CardTitle>
+        <CardDescription>See who owes whom, and settle up in seconds.</CardDescription>
       </CardHeader>
 
       {currentUser ? (
-        <div className="mx-6 mb-4 rounded-lg border border-border/70 bg-muted/40 px-3 py-3 text-sm">
+        <div className="mx-6 mb-4 rounded-2xl border border-brand/20 bg-brand/5 px-3.5 py-3 text-sm">
           <p>
             You&apos;re already signed in as{" "}
             <span className="font-medium">{currentUser.email}</span>
@@ -137,11 +140,11 @@ export function LoginForm({ currentUser = null }: LoginFormProps) {
       </CardContent>
 
       <div className="my-4 flex items-center gap-3 px-6">
-        <span className="h-px flex-1 bg-border" />
-        <span className="text-xs uppercase tracking-wide text-muted-foreground">
+        <span className="h-px flex-1 bg-border/70" />
+        <span className="text-[0.65rem] font-semibold tracking-[0.18em] text-muted-foreground uppercase">
           or
         </span>
-        <span className="h-px flex-1 bg-border" />
+        <span className="h-px flex-1 bg-border/70" />
       </div>
 
       <form action={formAction}>
@@ -169,7 +172,7 @@ export function LoginForm({ currentUser = null }: LoginFormProps) {
           </div>
 
           {state.errorCode === "email_not_confirmed" ? (
-            <div className="space-y-2 rounded-lg border border-border/70 bg-muted/40 p-3 text-sm">
+            <div className="space-y-2 rounded-2xl border border-border/70 bg-muted/40 p-3 text-sm">
               <p className="text-muted-foreground">
                 Need a fresh confirmation link?
               </p>
@@ -223,7 +226,7 @@ export function LoginForm({ currentUser = null }: LoginFormProps) {
               name="remember"
               checked={remember}
               onChange={(event) => setRemember(event.target.checked)}
-              className="mt-0.5 size-4 accent-primary"
+              className="mt-0.5 size-4 accent-brand"
             />
             <span>
               Keep me signed in on this device

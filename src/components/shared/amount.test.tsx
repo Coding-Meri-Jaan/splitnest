@@ -9,14 +9,14 @@ describe("Amount", () => {
 
     const element = screen.getByText("+₹1,590");
     expect(element).toBeDefined();
-    expect(element.className).toContain("emerald");
+    expect(element.className).toContain("text-success");
   });
 
   it("renders a negative balance with a minus sign and negative tone", () => {
     render(<Amount value={-900} />);
 
     const element = screen.getByText("-₹900");
-    expect(element.className).toContain("rose");
+    expect(element.className).toContain("text-destructive");
   });
 
   it("renders an unsigned amount when signed is false", () => {

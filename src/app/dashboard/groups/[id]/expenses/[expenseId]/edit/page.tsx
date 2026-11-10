@@ -17,7 +17,7 @@ interface EditExpensePageProps {
 
 export default function EditExpensePage({ params }: EditExpensePageProps) {
   return (
-    <Suspense fallback={<div className="h-96 animate-pulse rounded-xl bg-muted" />}>
+    <Suspense fallback={<div className="h-96 sn-skeleton rounded-2xl" />}>
       <EditExpenseContent params={params} />
     </Suspense>
   );
@@ -53,6 +53,7 @@ async function EditExpenseContent({ params }: EditExpensePageProps) {
       </Button>
 
       <PageHeader
+        eyebrow="Edit expense"
         title="Edit expense"
         description="Saving replaces this expense and recalculates everyone's share."
       />

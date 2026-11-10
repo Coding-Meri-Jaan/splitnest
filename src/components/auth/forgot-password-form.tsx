@@ -21,9 +21,10 @@ export function ForgotPasswordForm() {
   const [state, formAction] = useActionState(requestPasswordResetAction, initialAuthState);
 
   return (
-    <Card className="border-border/70 shadow-sm">
+    <Card className="sn-glass rounded-3xl">
       <CardHeader>
-        <CardTitle className="font-heading text-2xl">Reset your password</CardTitle>
+        <p className="sn-eyebrow">Account recovery</p>
+        <CardTitle className="font-heading text-3xl tracking-tight">Reset your password</CardTitle>
         <CardDescription>We&apos;ll email you a link to set a new one.</CardDescription>
       </CardHeader>
 

@@ -30,8 +30,7 @@ interface MemberManageListProps {
   currentUserRole: GroupRole | null;
 }
 
-const selectClass =
-  "h-8 rounded-lg border border-input bg-transparent px-2 text-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
+const selectClass = "sn-select sn-select-sm";
 
 export function MemberManageList({
   groupId,
@@ -178,7 +177,7 @@ function RoleEditor({ groupId, memberId, memberName, role }: RoleEditorProps) {
           {state.error}
         </span>
       ) : state.message ? (
-        <span role="status" className="text-xs text-emerald-600 dark:text-emerald-400">
+        <span role="status" className="text-xs text-success">
           {state.message}
         </span>
       ) : null}

@@ -14,7 +14,7 @@ export default function VerifyEmailPage() {
   return (
     <Suspense
       fallback={
-        <div className="h-[420px] rounded-xl border border-border/70 bg-card" />
+        <div className="h-[440px] sn-skeleton rounded-3xl" />
       }
     >
       <VerifyEmailScreen />

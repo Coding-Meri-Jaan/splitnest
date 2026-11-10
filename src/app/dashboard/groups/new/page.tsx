@@ -23,6 +23,7 @@ export default function NewGroupPage() {
         Back to groups
       </Button>
       <PageHeader
+        eyebrow="Create"
         title="New group"
         description="Name the nest, then invite the people you share it with."
       />

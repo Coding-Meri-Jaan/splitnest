@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { PlusIcon } from "lucide-react";
+import { PlusIcon, SparklesIcon } from "lucide-react";
 import { Suspense } from "react";
 
 import { GroupCard } from "@/components/dashboard/group-card";
@@ -21,6 +21,7 @@ export default function GroupsPage({ searchParams }: GroupsPageProps) {
   return (
     <div className="space-y-6">
       <PageHeader
+        eyebrow="Nests"
         title="Groups"
         description="Every nest you share with friends, family, and flatmates."
         action={
@@ -58,8 +59,9 @@ async function GroupsList({ searchParams }: GroupsPageProps) {
       {notice ? (
         <p
           role="status"
-          className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400"
+          className="sn-enter flex items-center gap-2 rounded-2xl border border-success/30 bg-success/8 px-4 py-2.5 text-sm text-success"
         >
+          <SparklesIcon className="size-4" aria-hidden />
           {notice}
         </p>
       ) : null}
@@ -67,20 +69,26 @@ async function GroupsList({ searchParams }: GroupsPageProps) {
       {deleteError ? (
         <p
           role="alert"
-          className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+          className="sn-enter rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-2.5 text-sm text-destructive"
         >
           {deleteError}
         </p>
       ) : null}
 
       {groups.length === 0 ? (
-        <div className="rounded-xl border border-dashed bg-background p-10 text-center">
-          <p className="text-lg font-medium">No groups yet</p>
-          <p className="mt-1 text-sm text-muted-foreground">
+        <div className="sn-enter relative overflow-hidden rounded-3xl border border-dashed border-brand/25 bg-card/50 p-10 text-center backdrop-blur">
+          <span
+            aria-hidden
+            className="sn-orb -top-16 left-1/2 size-48 -translate-x-1/2 bg-brand/20"
+          />
+          <p className="relative text-lg font-semibold tracking-tight">
+            No groups yet
+          </p>
+          <p className="relative mt-1 text-sm text-muted-foreground">
             Create a nest for your trip, flat, or office lunch crew.
           </p>
           <Button
-            className="mt-4"
+            className="relative mt-4"
             nativeButton={false}
             render={<Link href="/dashboard/groups/new" />}
           >
@@ -90,8 +98,14 @@ async function GroupsList({ searchParams }: GroupsPageProps) {
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {groups.map((group) => (
-            <GroupCard key={group.id} group={group} />
+          {groups.map((group, index) => (
+            <div
+              key={group.id}
+              className="sn-enter"
+              style={{ animationDelay: `${Math.min(index, 6) * 50}ms` }}
+            >
+              <GroupCard group={group} />
+            </div>
           ))}
         </div>
       )}
@@ -103,7 +117,7 @@ function GroupsSkeleton() {
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {Array.from({ length: 6 }).map((_, index) => (
-        <div key={index} className="h-40 animate-pulse rounded-xl bg-muted" />
+        <div key={index} className="h-44 sn-skeleton rounded-2xl" />
       ))}
     </div>
   );

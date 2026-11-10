@@ -244,7 +244,7 @@ export function ExpenseForm({
             id="paidBy"
             name="paidBy"
             defaultValue={expense?.paidById ?? currentUserId}
-            className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="sn-select"
           >
             {members.map((member) => (
               <option key={member.id} value={member.id}>
@@ -262,7 +262,7 @@ export function ExpenseForm({
             id="category"
             name="category"
             defaultValue={expense?.category ?? "food"}
-            className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="sn-select"
           >
             {CATEGORY_IDS.map((id) => (
               <option key={id} value={id}>
@@ -284,7 +284,7 @@ export function ExpenseForm({
           onChange={(event) =>
             handleModeChange(event.target.value as ExpenseSplitMode)
           }
-          className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="sn-select"
         >
           {SPLIT_MODES.map((option) => (
             <option key={option.value} value={option.value}>
@@ -303,7 +303,7 @@ export function ExpenseForm({
           {members.map((member) => (
             <label
               key={member.id}
-              className="flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm"
+              className="flex cursor-pointer items-center gap-2 rounded-xl border border-border/70 bg-card/50 px-3 py-2 text-sm transition-colors hover:border-brand/30 hover:bg-brand/[0.04]"
             >
               <input
                 type="checkbox"
@@ -311,7 +311,7 @@ export function ExpenseForm({
                 value={member.id}
                 checked={selected.includes(member.id)}
                 onChange={() => toggleMember(member.id)}
-                className="size-4 accent-[var(--primary)]"
+                className="size-4 accent-[var(--brand)]"
               />
               {member.name}
             </label>
@@ -327,7 +327,7 @@ export function ExpenseForm({
       </fieldset>
 
       {mode !== "equal" && selected.length > 0 ? (
-        <div className="space-y-3 rounded-lg border p-3">
+        <div className="space-y-3 rounded-xl border border-border/70 bg-muted/30 p-3.5">
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm font-medium">
               {mode === "amount"
@@ -406,7 +406,7 @@ export function ExpenseForm({
           rows={2}
           maxLength={500}
           defaultValue={expense?.notes ?? ""}
-          className="w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="sn-textarea"
         />
       </div>
 

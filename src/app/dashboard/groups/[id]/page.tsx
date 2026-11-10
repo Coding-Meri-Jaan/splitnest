@@ -1,8 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
-import { ArrowLeftIcon, PlusIcon, ReceiptTextIcon, ScaleIcon, SettingsIcon, SmartphoneIcon } from "lucide-react";
+import { Suspense, type ComponentType } from "react";
+import {
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  HandshakeIcon,
+  PlusIcon,
+  ReceiptTextIcon,
+  ScaleIcon,
+  SettingsIcon,
+  SmartphoneIcon,
+  UsersRoundIcon,
+  WalletIcon,
+} from "lucide-react";
 
 import { BalanceList } from "@/components/dashboard/balance-list";
 import { ExpenseTable } from "@/components/dashboard/expense-table";
@@ -25,6 +36,7 @@ import { getGroupDetail } from "@/lib/data/groups";
 import { formatINR } from "@/lib/format";
 import { canEditLedger, canManageGroup } from "@/lib/roles";
 import { buildUpiUri } from "@/lib/upi";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Group",
@@ -89,6 +101,7 @@ async function GroupContent({ params, searchParams }: GroupPageProps) {
         size="sm"
         nativeButton={false}
         render={<Link href="/dashboard/groups" />}
+        className="-ml-2"
       >
         <ArrowLeftIcon />
         All groups
@@ -97,8 +110,9 @@ async function GroupContent({ params, searchParams }: GroupPageProps) {
       {confirmation ? (
         <p
           role="status"
-          className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400"
+          className="sn-enter flex items-center gap-2 rounded-2xl border border-success/30 bg-success/8 px-4 py-2.5 text-sm text-success"
         >
+          <ReceiptTextIcon className="size-4" aria-hidden />
           {confirmation}
         </p>
       ) : null}
@@ -106,14 +120,14 @@ async function GroupContent({ params, searchParams }: GroupPageProps) {
       {deleteError ? (
         <p
           role="alert"
-          className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+          className="sn-enter rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-2.5 text-sm text-destructive"
         >
           {deleteError}
         </p>
       ) : null}
 
       {!canEdit ? (
-        <p className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+        <p className="flex flex-wrap items-center gap-2 rounded-2xl border border-border/60 bg-card/50 px-4 py-2.5 text-sm text-muted-foreground backdrop-blur">
           <RoleBadge role={group.role} withDescription />
           You have view-only access. Ask an admin to make you an Editor if you
           need to add expenses.
@@ -121,6 +135,7 @@ async function GroupContent({ params, searchParams }: GroupPageProps) {
       ) : null}
 
       <PageHeader
+        eyebrow="Nest"
         title={`${group.emoji} ${group.name}`}
         description={`${group.memberCount} members · ${formatINR(totalSpent)} spent so far`}
         action={
@@ -156,12 +171,93 @@ async function GroupContent({ params, searchParams }: GroupPageProps) {
         }
       />
 
+      <section className="grid gap-4 lg:grid-cols-[1.45fr_1fr]">
+        <div className="sn-hero-panel sn-rise relative overflow-hidden rounded-3xl p-6">
+          <span
+            aria-hidden
+            className="sn-orb -top-14 right-0 size-44 bg-fuchsia-400/30"
+          />
+          <p className="relative text-[0.7rem] font-semibold tracking-[0.18em] text-white/65 uppercase">
+            Your balance in this nest
+          </p>
+          <p className="relative mt-2 font-heading text-4xl font-semibold tracking-tighter sm:text-5xl">
+            <Amount
+              value={group.netBalance}
+              className={cn(
+                "text-white",
+                group.netBalance > 0 && "text-emerald-200",
+                group.netBalance < 0 && "text-rose-200"
+              )}
+            />
+          </p>
+          <p className="relative mt-2 max-w-md text-sm text-white/65">
+            {group.netBalance > 0
+              ? "The group owes you. Settle up whenever you are ready."
+              : group.netBalance < 0
+                ? "You owe the group. Clear it with the fewest transfers."
+                : "You are all settled up in this nest."}
+          </p>
+          {canEdit ? (
+            <div className="relative mt-5 flex flex-wrap gap-2">
+              <Link
+                href={`/dashboard/groups/${group.id}/expenses/new`}
+                className="inline-flex h-9 items-center gap-1.5 rounded-full bg-white px-4 text-sm font-semibold text-zinc-950 shadow-lg shadow-black/20 transition-transform hover:bg-white/90 motion-safe:hover:-translate-y-0.5"
+              >
+                <PlusIcon className="size-4" aria-hidden />
+                Add expense
+              </Link>
+              <Link
+                href={`/dashboard/groups/${group.id}/settle`}
+                className="inline-flex h-9 items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-4 text-sm font-semibold text-white backdrop-blur transition-colors hover:bg-white/20"
+              >
+                <HandshakeIcon className="size-4" aria-hidden />
+                Record settlement
+              </Link>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <GroupStat
+            label="Total spent"
+            value={formatINR(totalSpent)}
+            icon={WalletIcon}
+            tone="brand"
+          />
+          <GroupStat
+            label="Members"
+            value={String(group.memberCount)}
+            icon={UsersRoundIcon}
+            tone="success"
+          />
+          <GroupStat
+            label="Expenses"
+            value={String(expenses.length)}
+            icon={ReceiptTextIcon}
+            tone="warning"
+          />
+          <GroupStat
+            label="Settlements"
+            value={String(settlements.length)}
+            icon={ScaleIcon}
+            tone="neutral"
+          />
+        </div>
+      </section>
+
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          <Card>
+          <Card className="sn-rise sn-delay-2">
             <CardHeader>
-              <CardTitle>Expenses</CardTitle>
-              <CardDescription>Everything logged in this nest.</CardDescription>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <CardTitle>Expenses</CardTitle>
+                  <CardDescription>Everything logged in this nest.</CardDescription>
+                </div>
+                <Badge variant="outline" className="hidden sm:inline-flex">
+                  {expenses.length} total
+                </Badge>
+              </div>
             </CardHeader>
             <ExpenseTable
               expenses={expenses}
@@ -174,7 +270,7 @@ async function GroupContent({ params, searchParams }: GroupPageProps) {
             />
           </Card>
 
-          <Card>
+          <Card className="sn-rise sn-delay-3">
             <CardHeader>
               <CardTitle>Settlements</CardTitle>
               <CardDescription>Payments already recorded outside SplitNest.</CardDescription>
@@ -190,7 +286,7 @@ async function GroupContent({ params, searchParams }: GroupPageProps) {
         </div>
 
         <div className="space-y-6">
-          <Card>
+          <Card className="sn-rise sn-delay-3">
             <CardHeader>
               <CardTitle>Your balance</CardTitle>
               <CardDescription>
@@ -204,15 +300,18 @@ async function GroupContent({ params, searchParams }: GroupPageProps) {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="sn-rise sn-delay-4">
             <CardHeader>
               <CardTitle>Members</CardTitle>
               <CardDescription>{group.memberCount} in this nest</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <ul className="space-y-3">
+              <ul className="space-y-1">
                 {group.members.map((member) => (
-                  <li key={member.id} className="flex items-center gap-2.5">
+                  <li
+                    key={member.id}
+                    className="flex items-center gap-2.5 rounded-xl px-1.5 py-1.5 transition-colors hover:bg-foreground/[0.03]"
+                  >
                     <MemberAvatar name={member.name} size="sm" />
                     <div className="min-w-0">
                       <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
@@ -229,10 +328,12 @@ async function GroupContent({ params, searchParams }: GroupPageProps) {
                 <Button
                   variant="outline"
                   size="sm"
+                  className="w-full"
                   nativeButton={false}
                   render={<Link href={`/dashboard/groups/${group.id}/settings`} />}
                 >
                   Manage members and roles
+                  <ArrowRightIcon />
                 </Button>
               ) : (
                 <p className="text-xs text-muted-foreground">
@@ -242,14 +343,17 @@ async function GroupContent({ params, searchParams }: GroupPageProps) {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="sn-rise sn-delay-5">
             <CardHeader>
               <CardTitle>Suggested settlements</CardTitle>
               <CardDescription>The fewest payments that clear this group.</CardDescription>
             </CardHeader>
             <CardContent>
               {suggestedTransfers.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Everyone is settled up.</p>
+                <p className="flex items-center gap-2 rounded-xl bg-success/8 px-3 py-2 text-sm text-success">
+                  <HandshakeIcon className="size-4" aria-hidden />
+                  Everyone is settled up.
+                </p>
               ) : (
                 <ul className="space-y-3">
                   {suggestedTransfers.map((transfer) => {
@@ -261,9 +365,18 @@ async function GroupContent({ params, searchParams }: GroupPageProps) {
                           note: group.name,
                         })
                       : null;
+                    const isMine = transfer.fromUserId === user.id;
 
                     return (
-                      <li key={`${transfer.fromUserId}-${transfer.toUserId}`} className="space-y-1.5">
+                      <li
+                        key={`${transfer.fromUserId}-${transfer.toUserId}`}
+                        className={cn(
+                          "space-y-1.5 rounded-xl border p-3",
+                          isMine
+                            ? "border-brand/25 bg-brand/5"
+                            : "border-border/60 bg-card/50"
+                        )}
+                      >
                         <div className="flex items-center justify-between gap-3 text-sm">
                           <span className="text-muted-foreground">
                             <span className="font-medium text-foreground">{transfer.fromName}</span> pays{" "}
@@ -271,7 +384,7 @@ async function GroupContent({ params, searchParams }: GroupPageProps) {
                           </span>
                           <Amount value={transfer.amount} signed={false} />
                         </div>
-                        {transfer.fromUserId !== user.id ? (
+                        {!isMine ? (
                           <p className="text-xs text-muted-foreground">
                             Record it once the payment is made.
                           </p>
@@ -308,14 +421,57 @@ async function GroupContent({ params, searchParams }: GroupPageProps) {
   );
 }
 
+interface GroupStatProps {
+  label: string;
+  value: string;
+  icon: ComponentType<{ className?: string }>;
+  tone: "brand" | "success" | "warning" | "neutral";
+}
+
+const statTones: Record<GroupStatProps["tone"], string> = {
+  brand: "sn-tint-brand",
+  success: "sn-tint-success",
+  warning: "bg-warning/12 text-warning ring-1 ring-warning/20",
+  neutral: "bg-muted text-muted-foreground ring-1 ring-border/60",
+};
+
+function GroupStat({ label, value, icon: Icon, tone }: GroupStatProps) {
+  return (
+    <div className="sn-surface sn-hover-lift rounded-2xl p-4">
+      <span
+        className={cn(
+          "flex size-9 items-center justify-center rounded-xl",
+          statTones[tone]
+        )}
+      >
+        <Icon className="size-4" />
+      </span>
+      <p className="mt-3 text-[0.65rem] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+        {label}
+      </p>
+      <p className="mt-1 font-heading text-lg font-semibold tracking-tight">
+        {value}
+      </p>
+    </div>
+  );
+}
+
 function GroupSkeleton() {
   return (
     <div className="space-y-6">
-      <div className="h-8 w-24 animate-pulse rounded-md bg-muted" />
-      <div className="h-16 w-full max-w-lg animate-pulse rounded-lg bg-muted" />
+      <div className="h-8 w-24 sn-skeleton rounded-full" />
+      <div className="h-16 w-full max-w-lg sn-skeleton rounded-2xl" />
+      <div className="grid gap-4 lg:grid-cols-[1.45fr_1fr]">
+        <div className="h-64 sn-skeleton rounded-3xl" />
+        <div className="grid grid-cols-2 gap-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="h-28 sn-skeleton rounded-2xl" />
+          ))}
+        </div>
+      </div>
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="h-80 animate-pulse rounded-xl bg-muted lg:col-span-2" />
-        <div className="h-80 animate-pulse rounded-xl bg-muted" />
+        <div className="h-80 sn-skeleton rounded-2xl lg:col-span-2" />
+        <div className="h-80 sn-skeleton rounded-2xl" />
       </div>
     </div>
   );

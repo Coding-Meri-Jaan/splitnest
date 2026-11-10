@@ -43,7 +43,7 @@ export function SettlementForm({ groupId, members, currentUserId }: SettlementFo
             id="fromUser"
             name="fromUser"
             defaultValue={currentUserId}
-            className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="sn-select"
           >
             {members.map((member) => (
               <option key={member.id} value={member.id}>
@@ -61,7 +61,7 @@ export function SettlementForm({ groupId, members, currentUserId }: SettlementFo
             id="toUser"
             name="toUser"
             defaultValue={otherMember}
-            className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="sn-select"
           >
             {members.map((member) => (
               <option key={member.id} value={member.id}>
@@ -93,7 +93,7 @@ export function SettlementForm({ groupId, members, currentUserId }: SettlementFo
             id="method"
             name="method"
             defaultValue="upi"
-            className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="sn-select"
           >
             <option value="upi">UPI</option>
             <option value="cash">Cash</option>

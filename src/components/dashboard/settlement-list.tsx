@@ -35,7 +35,7 @@ export function SettlementList({
   }
 
   return (
-    <ul className="space-y-3">
+    <ul className="space-y-2.5">
       {settlements.map((settlement) => {
         const canDelete = canEditRow(
           role,
@@ -45,12 +45,13 @@ export function SettlementList({
         return (
           <li
             key={settlement.id}
-            className="flex items-start justify-between gap-3 border-b pb-3 last:border-0 last:pb-0"
+            className="flex items-start justify-between gap-3 rounded-xl border border-border/50 bg-card/50 px-3 py-2.5 transition-colors hover:border-brand/20 hover:bg-brand/[0.03]"
           >
             <div className="min-w-0 space-y-1">
               <p className="text-sm">
-                <span className="font-medium">{settlement.fromName}</span> paid{" "}
-                <span className="font-medium">{settlement.toName}</span>
+                <span className="font-semibold">{settlement.fromName}</span>{" "}
+                <span className="text-muted-foreground">paid</span>{" "}
+                <span className="font-semibold">{settlement.toName}</span>
               </p>
               <p className="text-xs text-muted-foreground">
                 {formatDate(settlement.date)} · {METHOD_LABELS[settlement.method]}
@@ -58,7 +59,7 @@ export function SettlementList({
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-1">
-              <Amount value={settlement.amount} signed={false} />
+              <Amount value={settlement.amount} signed={false} className="text-sm" />
               {canDelete ? (
                 <form action={deleteSettlementAction}>
                   <input type="hidden" name="settlementId" value={settlement.id} />

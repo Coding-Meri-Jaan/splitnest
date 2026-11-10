@@ -68,6 +68,7 @@ async function GroupSettingsContent({ params }: GroupSettingsPageProps) {
       </Button>
 
       <PageHeader
+        eyebrow="Nest settings"
         title="Group settings"
         description={
           canDelete
@@ -147,10 +148,10 @@ async function GroupSettingsContent({ params }: GroupSettingsPageProps) {
 function SettingsSkeleton() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <div className="h-8 w-24 animate-pulse rounded-md bg-muted" />
-      <div className="h-16 w-full max-w-lg animate-pulse rounded-lg bg-muted" />
-      <div className="h-56 animate-pulse rounded-xl bg-muted" />
-      <div className="h-56 animate-pulse rounded-xl bg-muted" />
+      <div className="h-8 w-24 sn-skeleton rounded-full" />
+      <div className="h-16 w-full max-w-lg sn-skeleton rounded-2xl" />
+      <div className="h-56 sn-skeleton rounded-2xl" />
+      <div className="h-56 sn-skeleton rounded-2xl" />
     </div>
   );
 }

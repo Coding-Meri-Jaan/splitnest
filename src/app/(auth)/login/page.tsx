@@ -12,7 +12,7 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="h-[520px] rounded-xl border border-border/70 bg-card" />
+        <div className="h-[560px] sn-skeleton rounded-3xl" />
       }
     >
       <LoginScreen />

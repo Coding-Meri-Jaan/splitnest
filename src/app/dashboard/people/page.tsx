@@ -15,10 +15,11 @@ export default function PeoplePage() {
   return (
     <div className="space-y-6">
       <PageHeader
+        eyebrow="Your circle"
         title="People"
         description="Everyone in your nests and how you stand with each of them."
       />
-      <Suspense fallback={<div className="h-96 animate-pulse rounded-xl bg-muted" />}>
+      <Suspense fallback={<PeopleSkeleton />}>
         <PeopleList />
       </Suspense>
     </div>
@@ -31,7 +32,7 @@ async function PeopleList() {
 
   if (people.length === 0) {
     return (
-      <Card className="p-10 text-center">
+      <Card className="sn-rise p-10 text-center">
         <p className="text-sm text-muted-foreground">
           Nobody here yet. Create a group and invite a friend.
         </p>
@@ -40,14 +41,20 @@ async function PeopleList() {
   }
 
   return (
-    <WhoOwesWhom
-      people={people.map((person) => ({
-        id: person.id,
-        name: person.name,
-        email: person.email,
-        amount: person.netBalance,
-        groupCount: person.sharedGroups,
-      }))}
-    />
+    <div className="sn-rise">
+      <WhoOwesWhom
+        people={people.map((person) => ({
+          id: person.id,
+          name: person.name,
+          email: person.email,
+          amount: person.netBalance,
+          groupCount: person.sharedGroups,
+        }))}
+      />
+    </div>
   );
+}
+
+function PeopleSkeleton() {
+  return <div className="h-[32rem] sn-skeleton rounded-2xl" />;
 }

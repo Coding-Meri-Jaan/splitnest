@@ -138,14 +138,17 @@ export function SignupForm({ currentUser = null }: SignupFormProps) {
   }, []);
 
   return (
-    <Card className="border-border/70 shadow-sm">
+    <Card className="sn-glass rounded-3xl">
       <CardHeader>
-        <CardTitle className="font-heading text-2xl">Create your account</CardTitle>
+        <p className="sn-eyebrow">Get started free</p>
+        <CardTitle className="font-heading text-3xl tracking-tight">
+          Create your account
+        </CardTitle>
         <CardDescription>Free to start, no card needed.</CardDescription>
       </CardHeader>
 
       {currentUser ? (
-        <div className="mx-6 mb-4 rounded-lg border border-border/70 bg-muted/40 px-3 py-3 text-sm">
+        <div className="mx-6 mb-4 rounded-2xl border border-brand/20 bg-brand/5 px-3.5 py-3 text-sm">
           <p>
             You&apos;re already signed in as{" "}
             <span className="font-medium">{currentUser.email}</span>
@@ -223,11 +226,11 @@ export function SignupForm({ currentUser = null }: SignupFormProps) {
           </CardContent>
 
           <div className="my-4 flex items-center gap-3 px-6">
-            <span className="h-px flex-1 bg-border" />
-            <span className="text-xs uppercase tracking-wide text-muted-foreground">
+            <span className="h-px flex-1 bg-border/70" />
+            <span className="text-[0.65rem] font-semibold tracking-[0.18em] text-muted-foreground uppercase">
               or
             </span>
-            <span className="h-px flex-1 bg-border" />
+            <span className="h-px flex-1 bg-border/70" />
           </div>
 
           <form action={formAction} onSubmit={handleSubmit}>

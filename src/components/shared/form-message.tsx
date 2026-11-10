@@ -18,8 +18,8 @@ export function FormMessage({ error, message }: FormMessageProps) {
       role={isError ? "alert" : "status"}
       className={
         isError
-          ? "flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
-          : "flex items-start gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400"
+          ? "sn-pop flex items-start gap-2 rounded-xl border border-destructive/25 bg-destructive/8 px-3.5 py-2.5 text-sm text-destructive"
+          : "sn-pop flex items-start gap-2 rounded-xl border border-success/25 bg-success/8 px-3.5 py-2.5 text-sm text-success"
       }
     >
       <Icon className="mt-0.5 size-4 shrink-0" aria-hidden />

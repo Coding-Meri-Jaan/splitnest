@@ -15,7 +15,7 @@ export function CreateGroupForm() {
   const [state, formAction] = useActionState(createGroupAction, initialFormState);
 
   return (
-    <Card>
+    <Card className="sn-rise">
       <CardHeader>
         <CardTitle>Group details</CardTitle>
         <CardDescription>
@@ -47,7 +47,7 @@ export function CreateGroupForm() {
               id="emoji"
               name="emoji"
               defaultValue="🏠"
-              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="sn-select"
             >
               {EMOJI_CHOICES.map((emoji) => (
                 <option key={emoji} value={emoji}>

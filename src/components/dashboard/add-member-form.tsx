@@ -37,7 +37,7 @@ export function AddMemberForm({ groupId, assignableRoles }: AddMemberFormProps) 
           name="role"
           defaultValue={defaultRole}
           aria-label="Role for the new member"
-          className="h-8 shrink-0 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+          className="sn-select shrink-0 sm:w-36"
         >
           {assignableRoles.map((role) => (
             <option key={role} value={role}>
