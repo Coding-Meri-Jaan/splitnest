@@ -135,7 +135,22 @@ async function loadLedger(
   if (splitsResult.error) fail("expense splits", splitsResult.error.message);
 
   const memberships = membershipsResult.data ?? [];
-  const profileIds = [...new Set(memberships.map((row) => row.user_id))];
+  // Profiles are only readable while you share a group, so a member who has
+  // already left disappears from this query. Ask for everyone the ledger
+  // mentions anyway; the ones still visible keep their real names, and the
+  // rest fall back to a neutral label below.
+  const profileIds = [
+    ...new Set([
+      ...memberships.map((row) => row.user_id),
+      ...expenses.map((row) => row.paid_by),
+      ...expenses.map((row) => row.created_by),
+      ...(splitsResult.data ?? []).map((row) => row.user_id),
+      ...(settlementsResult.data ?? []).flatMap((row) => [
+        row.from_user,
+        row.to_user,
+      ]),
+    ]),
+  ];
 
   const profilesResult =
     profileIds.length > 0
@@ -157,8 +172,26 @@ async function loadLedger(
   };
 }
 
+function ledgerParticipantIds(ledger: Ledger): Set<string> {
+  const ids = new Set<string>();
+
+  for (const expense of ledger.expenses) {
+    ids.add(expense.paid_by);
+    ids.add(expense.created_by);
+  }
+  for (const split of ledger.splits) {
+    ids.add(split.user_id);
+  }
+  for (const settlement of ledger.settlements) {
+    ids.add(settlement.from_user);
+    ids.add(settlement.to_user);
+  }
+
+  return ids;
+}
+
 function memberMap(ledger: Ledger): Map<string, Person> {
-  return new Map(
+  const people = new Map(
     ledger.profiles.map((profile) => [
       profile.id,
       {
@@ -169,6 +202,16 @@ function memberMap(ledger: Ledger): Map<string, Person> {
       },
     ]),
   );
+
+  // Someone who left after settling up keeps their rows in the ledger. Their
+  // profile is no longer readable, so label them instead of showing "Member".
+  for (const id of ledgerParticipantIds(ledger)) {
+    if (!people.has(id)) {
+      people.set(id, { id, name: "Former member", email: "", city: null });
+    }
+  }
+
+  return people;
 }
 
 function netByGroup(ledger: Ledger, groupId: string): Record<string, number> {
