@@ -19,7 +19,13 @@ const dateFormatter = new Intl.DateTimeFormat("en-IN", {
 });
 
 export function formatINR(amount: number): string {
-  return inrFormatter.format(amount);
+  // Round to the nearest paisa first so a tiny floating-point residue cannot
+  // turn a whole rupee into a two-decimal string. Whole rupees stay compact;
+  // anything with paise keeps them, so ₹0.01 never collapses to ₹0.
+  const rounded = Math.round(amount * 100) / 100;
+  return Number.isInteger(rounded)
+    ? inrFormatter.format(rounded)
+    : inrPreciseFormatter.format(rounded);
 }
 
 export function formatINRPrecise(amount: number): string {
@@ -27,7 +33,7 @@ export function formatINRPrecise(amount: number): string {
 }
 
 export function formatSignedINR(amount: number): string {
-  const formatted = inrFormatter.format(Math.abs(amount));
+  const formatted = formatINR(Math.abs(amount));
   if (amount > 0) {
     return `+${formatted}`;
   }

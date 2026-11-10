@@ -86,7 +86,7 @@ async function GroupSettingsContent({ params }: GroupSettingsPageProps) {
           <CardDescription>
             {isOwner
               ? "Remove people who have no expenses or settlements here."
-              : "Only the owner can remove other people."}
+              : "Only the owner can remove other people. You can leave once your balance here is ₹0."}
           </CardDescription>
         </CardHeader>
         <CardContent>

@@ -61,7 +61,7 @@ export function MemberManageList({
                     confirmTitle={isSelf ? "Leave this group?" : `Remove ${member.name}?`}
                     confirmMessage={
                       isSelf
-                        ? "Leave this group? The owner can add you back later."
+                        ? "Leave this group? Your balance must be ₹0. Past expenses and settlements stay in the group."
                         : `Remove ${member.name} from this group? They can be added back later.`
                     }
                   >

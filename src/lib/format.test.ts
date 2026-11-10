@@ -16,6 +16,16 @@ describe("formatINR", () => {
   it("rounds to whole rupees by default", () => {
     expect(formatINR(1590)).toBe("₹1,590");
   });
+
+  it("keeps paise instead of rounding a small amount to zero", () => {
+    expect(formatINR(0.01)).toBe("₹0.01");
+    expect(formatINR(928.5)).toBe("₹928.50");
+    expect(formatINR(-0.01)).toBe("-₹0.01");
+  });
+
+  it("ignores floating-point residue on whole rupees", () => {
+    expect(formatINR(2015.0000000002)).toBe("₹2,015");
+  });
 });
 
 describe("formatINRPrecise", () => {
@@ -35,6 +45,10 @@ describe("formatSignedINR", () => {
 
   it("leaves zero unsigned", () => {
     expect(formatSignedINR(0)).toBe("₹0");
+  });
+
+  it("keeps paise for tiny negative balances", () => {
+    expect(formatSignedINR(-0.01)).toBe("-₹0.01");
   });
 });
 

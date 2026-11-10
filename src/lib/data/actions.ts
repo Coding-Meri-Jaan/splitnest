@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/lib/auth/user";
 import { displayName } from "@/lib/display-name";
-import { parseRupeesToPaise } from "@/lib/money";
+import { formatINR } from "@/lib/format";
+import { computeNetBalances, parseRupeesToPaise } from "@/lib/money";
 import { buildSplitShares, isSplitMode } from "@/lib/splits";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { ExpenseCategory } from "@/types/database";
@@ -114,6 +115,73 @@ async function memberHasActivity(
   ]);
 
   return (paid.count ?? 0) + (received.count ?? 0) > 0;
+}
+
+/**
+ * A member's current position in a group's ledger, in paise.
+ *
+ * Positive = the group owes them, negative = they owe the group, zero = they
+ * are settled up. Returns null if the ledger could not be read, so callers can
+ * fail closed instead of guessing.
+ */
+async function memberNetPaise(
+  supabase: SupabaseServerClient,
+  groupId: string,
+  memberId: string,
+): Promise<number | null> {
+  const [expensesResult, settlementsResult] = await Promise.all([
+    supabase
+      .from("expenses")
+      .select("id, paid_by, amount_paise")
+      .eq("group_id", groupId),
+    supabase
+      .from("settlements")
+      .select("from_user, to_user, amount_paise")
+      .eq("group_id", groupId),
+  ]);
+
+  if (expensesResult.error || settlementsResult.error) {
+    return null;
+  }
+
+  const expenses = expensesResult.data ?? [];
+  const splitsByExpense = new Map<
+    string,
+    { userId: string; sharePaise: number }[]
+  >();
+
+  if (expenses.length > 0) {
+    const { data: splits, error } = await supabase
+      .from("expense_splits")
+      .select("expense_id, user_id, share_paise")
+      .in(
+        "expense_id",
+        expenses.map((row) => row.id),
+      );
+
+    if (error) return null;
+
+    for (const split of splits ?? []) {
+      const shares = splitsByExpense.get(split.expense_id) ?? [];
+      shares.push({ userId: split.user_id, sharePaise: split.share_paise });
+      splitsByExpense.set(split.expense_id, shares);
+    }
+  }
+
+  const net = computeNetBalances(
+    expenses.map((expense) => ({
+      paidBy: expense.paid_by,
+      amountPaise: expense.amount_paise,
+      splits: splitsByExpense.get(expense.id) ?? [],
+    })),
+    (settlementsResult.data ?? []).map((settlement) => ({
+      fromUser: settlement.from_user,
+      toUser: settlement.to_user,
+      amountPaise: settlement.amount_paise,
+    })),
+  );
+
+  return net[memberId] ?? 0;
 }
 
 
@@ -337,11 +405,33 @@ export async function removeMemberAction(
     };
   }
 
-  if (await memberHasActivity(supabase, groupId, memberId)) {
+  if (leaving) {
+    // Leaving only changes the group if this member is still owed money or
+    // still owes money. Once their net is zero, the old rows can stay: they no
+    // longer affect anyone's balance, and the history stays intact.
+    const netPaise = await memberNetPaise(supabase, groupId, memberId);
+
+    if (netPaise === null) {
+      return {
+        error: "Could not check your balance. Please try again.",
+        message: null,
+      };
+    }
+
+    if (netPaise !== 0) {
+      const amount = formatINR(Math.abs(netPaise) / 100);
+      return {
+        error:
+          netPaise < 0
+            ? `Settle up before leaving: you owe ${amount} in this group.`
+            : `Settle up before leaving: you are owed ${amount} in this group.`,
+        message: null,
+      };
+    }
+  } else if (await memberHasActivity(supabase, groupId, memberId)) {
     return {
-      error: leaving
-        ? "You have expenses or settlements in this group. Ask the owner to delete those records before you leave."
-        : "They have expenses or settlements in this group. Delete those records before removing them.",
+      error:
+        "They have expenses or settlements in this group. Delete those records before removing them.",
       message: null,
     };
   }
