@@ -385,64 +385,66 @@
   outline-offset: 2px;
 }
 
-.sn-select {
-  height: 2.75rem;
-  width: 100%;
-  min-width: 0;
-  border-radius: 0.75rem;
-  border: 1px solid var(--input);
-  background-color: color-mix(in oklch, var(--card) 70%, transparent);
-  padding: 0 0.875rem;
-  font-size: 0.875rem;
-  color: var(--foreground);
-  outline: none;
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease,
-    background-color 0.2s ease;
-}
+@layer components {
+  .sn-select {
+    height: 2.75rem;
+    width: 100%;
+    min-width: 0;
+    border-radius: 0.75rem;
+    border: 1px solid var(--input);
+    background-color: color-mix(in oklch, var(--card) 70%, transparent);
+    padding: 0 0.875rem;
+    font-size: 0.875rem;
+    color: var(--foreground);
+    outline: none;
+    transition:
+      border-color 0.2s ease,
+      box-shadow 0.2s ease,
+      background-color 0.2s ease;
+  }
 
-.sn-select:hover {
-  border-color: color-mix(in oklch, var(--foreground) 20%, transparent);
-}
+  .sn-select:hover {
+    border-color: color-mix(in oklch, var(--foreground) 20%, transparent);
+  }
 
-.sn-select:focus-visible {
-  border-color: color-mix(in oklch, var(--brand) 60%, transparent);
-  background-color: var(--card);
-  box-shadow: 0 0 0 4px color-mix(in oklch, var(--brand) 15%, transparent);
-}
+  .sn-select:focus-visible {
+    border-color: color-mix(in oklch, var(--brand) 60%, transparent);
+    background-color: var(--card);
+    box-shadow: 0 0 0 4px color-mix(in oklch, var(--brand) 15%, transparent);
+  }
 
-.sn-select-sm {
-  height: 2.25rem;
-  width: auto;
-  border-radius: 0.6rem;
-  padding: 0 0.5rem;
-  font-size: 0.75rem;
-}
+  .sn-select-sm {
+    height: 2.25rem;
+    width: auto;
+    border-radius: 0.6rem;
+    padding: 0 0.5rem;
+    font-size: 0.75rem;
+  }
 
-.sn-textarea {
-  width: 100%;
-  border-radius: 0.75rem;
-  border: 1px solid var(--input);
-  background-color: color-mix(in oklch, var(--card) 70%, transparent);
-  padding: 0.625rem 0.875rem;
-  font-size: 0.875rem;
-  color: var(--foreground);
-  outline: none;
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease,
-    background-color 0.2s ease;
-}
+  .sn-textarea {
+    width: 100%;
+    border-radius: 0.75rem;
+    border: 1px solid var(--input);
+    background-color: color-mix(in oklch, var(--card) 70%, transparent);
+    padding: 0.625rem 0.875rem;
+    font-size: 0.875rem;
+    color: var(--foreground);
+    outline: none;
+    transition:
+      border-color 0.2s ease,
+      box-shadow 0.2s ease,
+      background-color 0.2s ease;
+  }
 
-.sn-textarea:hover {
-  border-color: color-mix(in oklch, var(--foreground) 20%, transparent);
-}
+  .sn-textarea:hover {
+    border-color: color-mix(in oklch, var(--foreground) 20%, transparent);
+  }
 
-.sn-textarea:focus-visible {
-  border-color: color-mix(in oklch, var(--brand) 60%, transparent);
-  background-color: var(--card);
-  box-shadow: 0 0 0 4px color-mix(in oklch, var(--brand) 15%, transparent);
+  .sn-textarea:focus-visible {
+    border-color: color-mix(in oklch, var(--brand) 60%, transparent);
+    background-color: var(--card);
+    box-shadow: 0 0 0 4px color-mix(in oklch, var(--brand) 15%, transparent);
+  }
 }
 
 /* ------------------------------------------------------------------ */

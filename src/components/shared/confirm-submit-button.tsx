@@ -63,15 +63,15 @@ export function ConfirmSubmitButton({
         {children}
       </AlertDialog.Trigger>
       <AlertDialog.Portal>
-        <AlertDialog.Backdrop className="fixed inset-0 z-50 bg-black/20 transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0 supports-backdrop-filter:backdrop-blur-xs" />
-        <AlertDialog.Popup className="fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border bg-popover p-4 text-popover-foreground shadow-lg transition duration-150 data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0">
-          <AlertDialog.Title className="font-heading text-base font-medium text-foreground">
+        <AlertDialog.Backdrop className="fixed inset-0 z-50 bg-zinc-950/35 transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0 supports-backdrop-filter:backdrop-blur-sm" />
+        <AlertDialog.Popup className="sn-glass fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl p-5 text-popover-foreground transition duration-150 data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0">
+          <AlertDialog.Title className="font-heading text-lg font-semibold tracking-tight text-foreground">
             {confirmTitle}
           </AlertDialog.Title>
-          <AlertDialog.Description className="mt-2 text-sm text-muted-foreground">
+          <AlertDialog.Description className="mt-2 text-sm leading-relaxed text-muted-foreground">
             {confirmMessage}
           </AlertDialog.Description>
-          <div className="mt-4 flex justify-end gap-2">
+          <div className="mt-5 flex justify-end gap-2">
             <AlertDialog.Close render={<Button variant="outline" />}>
               Cancel
             </AlertDialog.Close>
