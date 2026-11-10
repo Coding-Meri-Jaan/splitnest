@@ -18,7 +18,7 @@ export type ExpenseCategory =
   | "shopping"
   | "other";
 
-export type MemberRole = "owner" | "member";
+export type MemberRole = "owner" | "co_owner" | "editor" | "viewer";
 export type SettlementMethod = "upi" | "cash" | "bank_transfer" | "other";
 
 export type Database = {

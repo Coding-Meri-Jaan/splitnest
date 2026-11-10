@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ArrowLeftIcon } from "lucide-react";
 import { Suspense } from "react";
 
@@ -8,7 +8,8 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { getCurrentUser } from "@/lib/auth/user";
-import { getGroupDetail } from "@/lib/data/groups";
+import { getGroupBasics } from "@/lib/data/groups";
+import { canEditLedger } from "@/lib/roles";
 
 interface NewExpensePageProps {
   params: Promise<{ id: string }>;
@@ -25,10 +26,14 @@ export default function NewExpensePage({ params }: NewExpensePageProps) {
 async function NewExpenseContent({ params }: NewExpensePageProps) {
   const { id } = await params;
   const user = await getCurrentUser();
-  const detail = await getGroupDetail(user.id, id);
+  const group = await getGroupBasics(user.id, id);
 
-  if (!detail) {
+  if (!group) {
     notFound();
+  }
+
+  if (!canEditLedger(group.role)) {
+    redirect(`/dashboard/groups/${group.id}`);
   }
 
   return (
@@ -40,7 +45,7 @@ async function NewExpenseContent({ params }: NewExpensePageProps) {
         render={<Link href={`/dashboard/groups/${id}`} />}
       >
         <ArrowLeftIcon />
-        {detail.group.name}
+        {group.name}
       </Button>
 
       <PageHeader
@@ -51,8 +56,8 @@ async function NewExpenseContent({ params }: NewExpensePageProps) {
       <Card>
         <CardContent className="pt-6">
           <ExpenseForm
-            groupId={detail.group.id}
-            members={detail.group.members}
+            groupId={group.id}
+            members={group.members}
             currentUserId={user.id}
           />
         </CardContent>

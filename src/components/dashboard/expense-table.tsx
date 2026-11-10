@@ -15,6 +15,7 @@ import {
 import { getCategoryMeta } from "@/lib/categories";
 import { deleteExpenseAction } from "@/lib/data/actions";
 import { formatDate } from "@/lib/format";
+import { canEditRow, type GroupRole } from "@/lib/roles";
 import { SPLIT_MODE_LABELS } from "@/lib/splits";
 import type { ExpenseView } from "@/types";
 
@@ -24,7 +25,8 @@ interface ExpenseTableProps {
   showEdit?: boolean;
   showDelete?: boolean;
   currentUserId?: string;
-  isGroupOwner?: boolean;
+  /** The signed-in user's role in the group that produced these rows. */
+  role?: GroupRole | null;
   className?: string;
   emptyMessage?: string;
 }
@@ -35,7 +37,7 @@ export function ExpenseTable({
   showEdit = false,
   showDelete = false,
   currentUserId,
-  isGroupOwner = false,
+  role = null,
   className,
   emptyMessage = "No expenses yet. Add the first one.",
 }: ExpenseTableProps) {
@@ -68,10 +70,10 @@ export function ExpenseTable({
             expense.splitMode === "equal"
               ? null
               : SPLIT_MODE_LABELS[expense.splitMode];
-          const canEdit = showEdit && expense.createdById === currentUserId;
+          const canEdit =
+            showEdit && canEditRow(role, expense.createdById === currentUserId);
           const canDelete =
-            showDelete &&
-            (expense.createdById === currentUserId || isGroupOwner);
+            showDelete && canEditRow(role, expense.createdById === currentUserId);
 
           return (
             <TableRow key={expense.id}>

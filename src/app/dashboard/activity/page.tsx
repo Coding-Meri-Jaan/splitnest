@@ -29,8 +29,8 @@ export default function ActivityPage() {
 }
 
 async function ActivityList() {
-  const user = await getCurrentUser();
-  const items = await getActivity(user.id);
+  await getCurrentUser();
+  const items = await getActivity();
 
   return (
     <Card>

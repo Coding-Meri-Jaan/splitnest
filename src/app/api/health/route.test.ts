@@ -13,6 +13,7 @@ interface HealthReport {
   urlLooksLikeDashboard: boolean;
   tables: Record<string, string>;
   splitSchema: string;
+  rolesSchema: string;
   notes: string[];
   nextStep: string;
 }
@@ -78,5 +79,34 @@ describe("health report", () => {
     expect(report.urlLooksLikeDashboard).toBe(true);
     expect(report.nextStep).toContain("NEXT_PUBLIC_SUPABASE_URL is the dashboard URL");
     expect(report.nextStep).not.toContain("custom SMTP");
+  });
+
+  it("asks for the roles migration when the four-role enum is missing", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", API_URL);
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.endsWith("/auth/v1/settings")) {
+        return new Response(JSON.stringify(CONFIRMED_SIGNUPS), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      if (url.includes("role=eq.co_owner") || url.includes("role=eq.viewer")) {
+        return new Response('{"code":"22P02"}', {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return new Response("[]", {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+
+    const report = await readReport();
+
+    expect(report.rolesSchema).toBe("missing");
+    expect(report.nextStep).toContain("0005_group_roles.sql");
+    expect(report.nextStep).toContain("Co-owner");
   });
 });

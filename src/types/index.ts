@@ -1,3 +1,5 @@
+import type { MemberRole } from "./database";
+
 export type CategoryId =
   | "food"
   | "travel"
@@ -22,6 +24,8 @@ export interface Person {
   name: string;
   email: string;
   city: string | null;
+  /** This person's role inside the group that produced this view. */
+  role?: MemberRole | null;
 }
 
 export interface GroupView {
@@ -31,6 +35,8 @@ export interface GroupView {
   creatorId: string;
   members: Person[];
   memberCount: number;
+  /** The signed-in user's role in this group. */
+  role: MemberRole | null;
   /** Positive: the group owes you. Negative: you owe the group. */
   netBalance: number;
 }

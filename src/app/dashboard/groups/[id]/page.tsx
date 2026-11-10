@@ -4,9 +4,9 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { ArrowLeftIcon, PlusIcon, ReceiptTextIcon, ScaleIcon, SettingsIcon, SmartphoneIcon } from "lucide-react";
 
-import { AddMemberForm } from "@/components/dashboard/add-member-form";
 import { BalanceList } from "@/components/dashboard/balance-list";
 import { ExpenseTable } from "@/components/dashboard/expense-table";
+import { RoleBadge } from "@/components/dashboard/role-badge";
 import { SettlementList } from "@/components/dashboard/settlement-list";
 import { Amount } from "@/components/shared/amount";
 import { MemberAvatar } from "@/components/shared/member-avatar";
@@ -23,6 +23,7 @@ import {
 import { getCurrentUser } from "@/lib/auth/user";
 import { getGroupDetail } from "@/lib/data/groups";
 import { formatINR } from "@/lib/format";
+import { canEditLedger, canManageGroup } from "@/lib/roles";
 import { buildUpiUri } from "@/lib/upi";
 
 export const metadata: Metadata = {
@@ -58,7 +59,8 @@ async function GroupContent({ params, searchParams }: GroupPageProps) {
   }
 
   const { group, expenses, settlements, balances, suggestedTransfers, totalSpent } = detail;
-  const isOwner = group.creatorId === user.id;
+  const canEdit = canEditLedger(group.role);
+  const canManage = canManageGroup(group.role);
   const confirmation =
     query.settled === "1"
       ? "Settlement recorded."
@@ -110,6 +112,14 @@ async function GroupContent({ params, searchParams }: GroupPageProps) {
         </p>
       ) : null}
 
+      {!canEdit ? (
+        <p className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+          <RoleBadge role={group.role} withDescription />
+          You have view-only access. Ask an admin to make you an Editor if you
+          need to add expenses.
+        </p>
+      ) : null}
+
       <PageHeader
         title={`${group.emoji} ${group.name}`}
         description={`${group.memberCount} members · ${formatINR(totalSpent)} spent so far`}
@@ -123,21 +133,25 @@ async function GroupContent({ params, searchParams }: GroupPageProps) {
               <SettingsIcon />
               Settings
             </Button>
-            <Button
-              variant="outline"
-              nativeButton={false}
-              render={<Link href={`/dashboard/groups/${group.id}/settle`} />}
-            >
-              <ScaleIcon />
-              Settle up
-            </Button>
-            <Button
-              nativeButton={false}
-              render={<Link href={`/dashboard/groups/${group.id}/expenses/new`} />}
-            >
-              <PlusIcon />
-              Add expense
-            </Button>
+            {canEdit ? (
+              <>
+                <Button
+                  variant="outline"
+                  nativeButton={false}
+                  render={<Link href={`/dashboard/groups/${group.id}/settle`} />}
+                >
+                  <ScaleIcon />
+                  Settle up
+                </Button>
+                <Button
+                  nativeButton={false}
+                  render={<Link href={`/dashboard/groups/${group.id}/expenses/new`} />}
+                >
+                  <PlusIcon />
+                  Add expense
+                </Button>
+              </>
+            ) : null}
           </div>
         }
       />
@@ -155,7 +169,7 @@ async function GroupContent({ params, searchParams }: GroupPageProps) {
               showEdit
               showDelete
               currentUserId={user.id}
-              isGroupOwner={isOwner}
+              role={group.role}
               emptyMessage="No expenses yet. Add the first one."
             />
           </Card>
@@ -169,7 +183,7 @@ async function GroupContent({ params, searchParams }: GroupPageProps) {
               <SettlementList
                 settlements={settlements}
                 currentUserId={user.id}
-                isGroupOwner={isOwner}
+                role={group.role}
               />
             </CardContent>
           </Card>
@@ -201,11 +215,9 @@ async function GroupContent({ params, searchParams }: GroupPageProps) {
                   <li key={member.id} className="flex items-center gap-2.5">
                     <MemberAvatar name={member.name} size="sm" />
                     <div className="min-w-0">
-                      <p className="flex items-center gap-2 text-sm font-medium">
+                      <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
                         <span className="truncate">{member.name}</span>
-                        {member.id === group.creatorId ? (
-                          <Badge variant="secondary">Owner</Badge>
-                        ) : null}
+                        <RoleBadge role={member.role} withDescription />
                         {member.id === user.id ? <Badge variant="outline">You</Badge> : null}
                       </p>
                       <p className="truncate text-xs text-muted-foreground">{member.email}</p>
@@ -213,11 +225,18 @@ async function GroupContent({ params, searchParams }: GroupPageProps) {
                   </li>
                 ))}
               </ul>
-              {isOwner ? (
-                <AddMemberForm groupId={group.id} />
+              {canManage ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  nativeButton={false}
+                  render={<Link href={`/dashboard/groups/${group.id}/settings`} />}
+                >
+                  Manage members and roles
+                </Button>
               ) : (
                 <p className="text-xs text-muted-foreground">
-                  Only the group owner can add people.
+                  Only the owner or a co-owner can add people.
                 </p>
               )}
             </CardContent>

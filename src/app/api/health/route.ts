@@ -42,6 +42,7 @@ export async function GET() {
       "10+ characters with uppercase, lowercase, number, and symbol; common passwords blocked",
     tables: {} as Record<string, string>,
     splitSchema: "skipped" as string,
+    rolesSchema: "skipped" as string,
     notes: [] as string[],
     nextStep: "",
   };
@@ -116,6 +117,30 @@ export async function GET() {
     report.splitSchema = "unreachable";
   }
 
+  // Migration 0005 adds the co_owner and viewer enum values. Filtering by them
+  // makes PostgREST cast the value against the enum, so an old owner/member
+  // schema answers 400 instead of silently ignoring the filter.
+  try {
+    const [coOwnerProbe, viewerProbe] = await Promise.all([
+      fetch(
+        `${url}/rest/v1/group_members?select=user_id&role=eq.co_owner&limit=1`,
+        { headers: authHeaders, cache: "no-store" },
+      ),
+      fetch(
+        `${url}/rest/v1/group_members?select=user_id&role=eq.viewer&limit=1`,
+        { headers: authHeaders, cache: "no-store" },
+      ),
+    ]);
+    report.rolesSchema =
+      coOwnerProbe.ok && viewerProbe.ok
+        ? "ok"
+        : coOwnerProbe.status === 400 || viewerProbe.status === 400
+          ? "missing"
+          : `http-${coOwnerProbe.status}/${viewerProbe.status}`;
+  } catch {
+    report.rolesSchema = "unreachable";
+  }
+
   const missing = Object.entries(report.tables)
     .filter(([, status]) => status === "missing")
     .map(([table]) => table);
@@ -154,7 +179,7 @@ export async function GET() {
   }
   if (missing.length > 0) {
     steps.push(
-      `Run supabase/migrations/0001_init.sql, 0002_expenses_and_invites.sql, 0003_profile_names.sql, then 0004_custom_splits.sql in the Supabase SQL editor (missing: ${missing.join(", ")}).`,
+      `Run supabase/migrations/0001_init.sql, 0002_expenses_and_invites.sql, 0003_profile_names.sql, 0004_custom_splits.sql, then 0005_group_roles.sql in the Supabase SQL editor (missing: ${missing.join(", ")}).`,
     );
   }
   if (report.auth === "ok" && report.splitSchema === "missing") {
@@ -163,6 +188,15 @@ export async function GET() {
     );
   } else if (report.splitSchema === "unreachable") {
     steps.push("Could not check the custom split columns. Is the REST endpoint reachable?");
+  }
+  if (report.auth === "ok" && report.rolesSchema === "missing") {
+    steps.push(
+      "Group roles are still owner/member. Run supabase/migrations/0005_group_roles.sql in the Supabase SQL editor to turn on Owner, Co-owner, Editor, and Viewer. Invites keep working as Editor until then.",
+    );
+  } else if (report.rolesSchema.startsWith("http-")) {
+    steps.push(
+      `Could not check the group roles schema (${report.rolesSchema}). Make sure the REST endpoint is reachable.`,
+    );
   }
 
   report.nextStep =

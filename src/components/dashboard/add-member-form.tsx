@@ -7,19 +7,25 @@ import { FormMessage } from "@/components/shared/form-message";
 import { Input } from "@/components/ui/input";
 import { addMemberAction } from "@/lib/data/actions";
 import { initialFormState } from "@/lib/form-state";
+import { ROLE_LABELS, type GroupRole } from "@/lib/roles";
 
 interface AddMemberFormProps {
   groupId: string;
+  /** Roles this person may hand out. Empty means they cannot invite. */
+  assignableRoles: GroupRole[];
 }
 
-export function AddMemberForm({ groupId }: AddMemberFormProps) {
+export function AddMemberForm({ groupId, assignableRoles }: AddMemberFormProps) {
   const [state, formAction] = useActionState(addMemberAction, initialFormState);
+  const defaultRole = assignableRoles.includes("viewer")
+    ? "viewer"
+    : (assignableRoles[0] ?? "viewer");
 
   return (
     <form action={formAction} className="space-y-3">
       <input type="hidden" name="groupId" value={groupId} />
       <FormMessage error={state.error} message={state.message} />
-      <div className="flex gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row">
         <Input
           name="email"
           type="email"
@@ -27,12 +33,26 @@ export function AddMemberForm({ groupId }: AddMemberFormProps) {
           aria-label="Email address to add"
           required
         />
+        <select
+          name="role"
+          defaultValue={defaultRole}
+          aria-label="Role for the new member"
+          className="h-8 shrink-0 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+        >
+          {assignableRoles.map((role) => (
+            <option key={role} value={role}>
+              {ROLE_LABELS[role]}
+            </option>
+          ))}
+        </select>
         <SubmitButton className="w-auto shrink-0" pendingLabel="Adding…">
           Add
         </SubmitButton>
       </div>
       <p className="text-xs text-muted-foreground">
-        They need a SplitNest account already. Only the group owner can add people.
+        {defaultRole === "viewer"
+          ? "New people start as Viewer and can only look around. Choose Editor to let them add expenses."
+          : "Choose the role this person needs. Editors can add expenses and edit their own."}
       </p>
     </form>
   );

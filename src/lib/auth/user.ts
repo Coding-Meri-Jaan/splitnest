@@ -1,11 +1,22 @@
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { io } from "next/cache";
-import type { User } from "@supabase/supabase-js";
+import { headers } from "next/headers";
 
 import { isEmailHandle } from "@/lib/display-name";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  USER_EMAIL_HEADER,
+  USER_ID_HEADER,
+  USER_LAST_SIGNIN_HEADER,
+  USER_NAME_HEADER,
+  USER_PROVIDER_HEADER,
+  USER_VERIFIED_HEADER,
+  decodeHeaderValue,
+  metadataName,
+  providerOf,
+} from "@/lib/auth/user-headers";
 
 export interface SessionUser {
   id: string;
@@ -22,36 +33,17 @@ export interface SessionUser {
   lastSignInAt: string | null;
 }
 
-function metadataName(user: User): string {
-  const fullName =
-    typeof user.user_metadata?.full_name === "string"
-      ? user.user_metadata.full_name.trim()
-      : "";
-  if (fullName.length > 0) {
-    return fullName;
-  }
-
-  // Google puts the display name in `name`, not `full_name`.
-  return typeof user.user_metadata?.name === "string"
-    ? user.user_metadata.name.trim()
-    : "";
-}
-
-function providerOf(user: User): string {
-  const provider = user.app_metadata?.provider;
-  if (typeof provider === "string" && provider.length > 0) {
-    return provider;
-  }
-  return user.identities?.[0]?.provider ?? "email";
-}
-
 /**
  * Reads the signed-in user without redirecting. Returns null when nobody is
  * signed in or Supabase is not configured, which lets screens such as /login
  * and /verify-email decide what to show.
  *
- * Cached per request so a page can call it from several Server Components
- * without repeating the auth round-trip.
+ * The session proxy has already verified the token and passed the identity
+ * down as request headers, so this normally costs one profile read instead of
+ * a second Auth round-trip. If the headers are missing (for example on an
+ * unmatched route), it falls back to verifying with Supabase itself.
+ *
+ * Cached per request so several Server Components can call it once.
  */
 export const getOptionalUser = cache(async (): Promise<SessionUser | null> => {
   if (!isSupabaseConfigured()) {
@@ -65,24 +57,42 @@ export const getOptionalUser = cache(async (): Promise<SessionUser | null> => {
   // Suspense fallback.
   await io();
 
+  const requestHeaders = await headers();
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
-  if (!user) {
-    return null;
+  let userId = requestHeaders.get(USER_ID_HEADER);
+  let email = decodeHeaderValue(requestHeaders.get(USER_EMAIL_HEADER));
+  let emailVerified = requestHeaders.get(USER_VERIFIED_HEADER) === "1";
+  let provider = requestHeaders.get(USER_PROVIDER_HEADER) || "email";
+  let lastSignInAt = requestHeaders.get(USER_LAST_SIGNIN_HEADER) || null;
+  let metadataDisplayName = decodeHeaderValue(
+    requestHeaders.get(USER_NAME_HEADER),
+  );
+
+  if (!userId) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return null;
+    }
+
+    userId = user.id;
+    email = user.email ?? "";
+    emailVerified = Boolean(user.email_confirmed_at);
+    provider = providerOf(user);
+    lastSignInAt = user.last_sign_in_at ?? null;
+    metadataDisplayName = metadataName(user);
   }
 
   const { data: profile } = await supabase
     .from("profiles")
     .select("full_name, city, upi_id")
-    .eq("id", user.id)
+    .eq("id", userId)
     .maybeSingle();
 
-  const email = user.email ?? "";
   const storedName = profile?.full_name?.trim() ?? "";
-  const metadataDisplayName = metadataName(user);
 
   // Older profile triggers copied the email local part into full_name. Treat
   // that as "no name" so shared screens never show an email handle.
@@ -105,19 +115,19 @@ export const getOptionalUser = cache(async (): Promise<SessionUser | null> => {
     await supabase
       .from("profiles")
       .update({ full_name: metadataDisplayName })
-      .eq("id", user.id);
+      .eq("id", userId);
   }
 
   return {
-    id: user.id,
+    id: userId,
     email,
     fullName,
     needsName: fullName.length === 0,
     city: profile?.city ?? null,
     upiId: profile?.upi_id ?? null,
-    emailVerified: Boolean(user.email_confirmed_at),
-    provider: providerOf(user),
-    lastSignInAt: user.last_sign_in_at ?? null,
+    emailVerified,
+    provider,
+    lastSignInAt,
   };
 });
 
@@ -142,3 +152,21 @@ export const getCurrentUser = cache(async (): Promise<SessionUser> => {
 
   return user;
 });
+
+/**
+ * The cheap identity check for Server Actions. Actions only need the user id,
+ * and the proxy already verified the session, so this skips both the Auth
+ * round-trip and the profile query. Falls back to the full check when the
+ * identity header is unavailable.
+ */
+export async function requireUserId(): Promise<string> {
+  const requestHeaders = await headers();
+  const userId = requestHeaders.get(USER_ID_HEADER);
+
+  if (userId) {
+    return userId;
+  }
+
+  const user = await getCurrentUser();
+  return user.id;
+}

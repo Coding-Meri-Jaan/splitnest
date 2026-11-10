@@ -3,13 +3,23 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { getCurrentUser } from "@/lib/auth/user";
+import { requireUserId } from "@/lib/auth/user";
 import { displayName } from "@/lib/display-name";
 import { formatINR } from "@/lib/format";
 import { computeNetBalances, parseRupeesToPaise } from "@/lib/money";
+import {
+  ROLE_LABELS,
+  assignableRoles,
+  canChangeRole,
+  canEditLedger,
+  canEditRow,
+  canManageGroup,
+  canRemoveMember,
+  normalizeRole,
+} from "@/lib/roles";
 import { buildSplitShares, isSplitMode } from "@/lib/splits";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import type { ExpenseCategory } from "@/types/database";
+import type { ExpenseCategory, MemberRole } from "@/types/database";
 import type { ExpenseSplitMode } from "@/types";
 import type { FormState } from "@/lib/form-state";
 
@@ -57,7 +67,7 @@ async function membershipRole(
   supabase: SupabaseServerClient,
   groupId: string,
   userId: string,
-): Promise<"owner" | "member" | null> {
+): Promise<MemberRole | null> {
   const { data } = await supabase
     .from("group_members")
     .select("role")
@@ -65,7 +75,7 @@ async function membershipRole(
     .eq("user_id", userId)
     .maybeSingle();
 
-  return data?.role ?? null;
+  return normalizeRole(data?.role ?? null);
 }
 
 /**
@@ -189,7 +199,7 @@ export async function createGroupAction(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const user = await getCurrentUser();
+  const userId = await requireUserId();
   const name = text(formData, "name");
   const emoji = text(formData, "emoji") || "🏠";
 
@@ -206,7 +216,7 @@ export async function createGroupAction(
   const groupId = crypto.randomUUID();
   const { error } = await supabase
     .from("groups")
-    .insert({ id: groupId, name, emoji, created_by: user.id });
+    .insert({ id: groupId, name, emoji, created_by: userId });
 
   if (error) {
     return { error: "Could not create the group. Please try again.", message: null };
@@ -221,7 +231,7 @@ export async function updateGroupAction(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const user = await getCurrentUser();
+  const userId = await requireUserId();
   const groupId = text(formData, "groupId");
   const name = text(formData, "name");
   const emoji = text(formData, "emoji") || "🏠";
@@ -237,10 +247,13 @@ export async function updateGroupAction(
   }
 
   const supabase = await createSupabaseServerClient();
-  const role = await membershipRole(supabase, groupId, user.id);
+  const role = await membershipRole(supabase, groupId, userId);
 
-  if (role !== "owner") {
-    return { error: "Only the group owner can rename this group.", message: null };
+  if (!canManageGroup(role)) {
+    return {
+      error: "Only the owner or a co-owner can rename this group.",
+      message: null,
+    };
   }
 
   const { data, error } = await supabase
@@ -261,7 +274,7 @@ export async function deleteGroupAction(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const user = await getCurrentUser();
+  const userId = await requireUserId();
   const groupId = text(formData, "groupId");
 
   if (!isUuid(groupId)) {
@@ -269,7 +282,7 @@ export async function deleteGroupAction(
   }
 
   const supabase = await createSupabaseServerClient();
-  const role = await membershipRole(supabase, groupId, user.id);
+  const role = await membershipRole(supabase, groupId, userId);
 
   if (role !== "owner") {
     return { error: "Only the group owner can delete this group.", message: null };
@@ -309,13 +322,21 @@ export async function deleteGroupAction(
   redirect("/dashboard/groups?deleted=group");
 }
 
+function isLegacyRoleError(error: { code?: string; message: string }): boolean {
+  // Before the roles migration the enum only knows owner/member. PostgREST
+  // reports that as 22P02, or with this message depending on its version.
+  return error.code === "22P02" || /invalid input value for enum/i.test(error.message);
+}
+
 export async function addMemberAction(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const user = await getCurrentUser();
+  const userId = await requireUserId();
   const groupId = text(formData, "groupId");
   const email = text(formData, "email").toLowerCase();
+  // New people start read-only. An owner can promote them afterwards.
+  const role = normalizeRole(text(formData, "role")) ?? "viewer";
 
   if (!isUuid(groupId)) {
     return { error: "That group could not be found.", message: null };
@@ -325,8 +346,15 @@ export async function addMemberAction(
   }
 
   const supabase = await createSupabaseServerClient();
-  if ((await membershipRole(supabase, groupId, user.id)) !== "owner") {
-    return { error: "Only the group owner can add members.", message: null };
+  const myRole = await membershipRole(supabase, groupId, userId);
+  if (!canManageGroup(myRole)) {
+    return {
+      error: "Only the owner or a co-owner can add members.",
+      message: null,
+    };
+  }
+  if (!assignableRoles(myRole).includes(role)) {
+    return { error: "You cannot assign that role.", message: null };
   }
 
   const { data: matches, error: lookupError } = await supabase.rpc(
@@ -346,9 +374,34 @@ export async function addMemberAction(
     };
   }
 
+  const addedName = displayName({ full_name: match.full_name, email });
   const { error } = await supabase
     .from("group_members")
-    .insert({ group_id: groupId, user_id: match.id, role: "member" });
+    .insert({ group_id: groupId, user_id: match.id, role });
+
+  if (error && isLegacyRoleError(error)) {
+    // Keep invites working while the roles migration is still pending. The
+    // legacy "member" role behaves exactly like today's Editor.
+    const { error: legacyError } = await supabase
+      .from("group_members")
+      .insert({ group_id: groupId, user_id: match.id, role: "member" as MemberRole });
+
+    if (legacyError) {
+      return {
+        error:
+          legacyError.code === "23505"
+            ? "They are already in this group."
+            : "Could not add that person.",
+        message: null,
+      };
+    }
+
+    revalidateGroup(groupId);
+    return {
+      error: null,
+      message: `${addedName === "Member" ? "They were" : `${addedName} was`} added as an Editor. Role choices become available once the database update is applied.`,
+    };
+  }
 
   if (error) {
     const duplicate = error.code === "23505";
@@ -359,21 +412,78 @@ export async function addMemberAction(
   }
 
   revalidateGroup(groupId);
-  const addedName = displayName({ full_name: match.full_name, email });
   return {
     error: null,
     message:
       addedName === "Member"
-        ? "They were added to the group."
-        : `${addedName} was added to the group.`,
+        ? `They were added as a ${ROLE_LABELS[role]}.`
+        : `${addedName} was added as a ${ROLE_LABELS[role]}.`,
   };
+}
+
+export async function updateMemberRoleAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const userId = await requireUserId();
+  const groupId = text(formData, "groupId");
+  const memberId = text(formData, "memberId");
+  const role = normalizeRole(text(formData, "role"));
+
+  if (!isUuid(groupId) || !isUuid(memberId) || !role) {
+    return { error: "That role change is not valid.", message: null };
+  }
+  if (role === "owner") {
+    return {
+      error: "The owner role cannot be reassigned. Delete the group instead.",
+      message: null,
+    };
+  }
+  if (memberId === userId) {
+    return { error: "You cannot change your own role.", message: null };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const [myRole, targetRole] = await Promise.all([
+    membershipRole(supabase, groupId, userId),
+    membershipRole(supabase, groupId, memberId),
+  ]);
+
+  if (!canChangeRole(myRole, targetRole)) {
+    return {
+      error: "Only the group owner can change roles, and the owner's role stays fixed.",
+      message: null,
+    };
+  }
+
+  const { data, error } = await supabase
+    .from("group_members")
+    .update({ role })
+    .eq("group_id", groupId)
+    .eq("user_id", memberId)
+    .select("user_id");
+
+  if (error && isLegacyRoleError(error)) {
+    return {
+      error:
+        "Role changes need the database update first. Run supabase/migrations/0005_group_roles.sql in the Supabase SQL editor.",
+      message: null,
+    };
+  }
+
+  if (error || !data || data.length === 0) {
+    return { error: "Could not change that role. Please try again.", message: null };
+  }
+
+  revalidateGroup(groupId);
+  return { error: null, message: `Role changed to ${ROLE_LABELS[role]}.` };
 }
 
 export async function removeMemberAction(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const user = await getCurrentUser();
+  const userId = await requireUserId();
   const groupId = text(formData, "groupId");
   const memberId = text(formData, "memberId");
 
@@ -381,26 +491,38 @@ export async function removeMemberAction(
     return { error: "That member could not be found.", message: null };
   }
 
-  const leaving = memberId === user.id;
+  const leaving = memberId === userId;
   const supabase = await createSupabaseServerClient();
-  const myRole = await membershipRole(supabase, groupId, user.id);
+  const myRole = await membershipRole(supabase, groupId, userId);
 
   if (!myRole) {
     return { error: "You are not a member of this group.", message: null };
-  }
-  if (!leaving && myRole !== "owner") {
-    return { error: "Only the group owner can remove members.", message: null };
   }
 
   const targetRole = await membershipRole(supabase, groupId, memberId);
   if (!targetRole) {
     return { error: "They are no longer in this group.", message: null };
   }
-  if (targetRole === "owner") {
+
+  if (!canRemoveMember(myRole, targetRole, leaving)) {
+    if (targetRole === "owner") {
+      return {
+        error: leaving
+          ? "The owner cannot leave. Delete the group instead."
+          : "The owner cannot be removed. Delete the group instead.",
+        message: null,
+      };
+    }
+    if (!leaving && myRole === "co_owner" && targetRole === "co_owner") {
+      return {
+        error: "Co-owners cannot remove each other. Ask the owner to do it.",
+        message: null,
+      };
+    }
     return {
       error: leaving
-        ? "The owner cannot leave. Delete the group instead."
-        : "The owner cannot be removed. Delete the group instead.",
+        ? "You cannot leave this group."
+        : "Only the owner or a co-owner can remove members.",
       message: null,
     };
   }
@@ -564,7 +686,7 @@ export async function createExpenseAction(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  await getCurrentUser();
+  await requireUserId();
   const parsed = readExpenseInput(formData);
 
   if ("error" in parsed) {
@@ -593,8 +715,10 @@ export async function createExpenseAction(
   if (error) {
     return {
       error:
-        error.message.includes("not a member") || error.message.includes("split member")
-          ? "Everyone on this expense must belong to the group."
+        error.message.includes("not allowed") ||
+        error.message.includes("not a member") ||
+        error.message.includes("split member")
+          ? "Only editors, co-owners, and the owner can add expenses."
           : "Could not save the expense. Please try again.",
       message: null,
     };
@@ -608,7 +732,7 @@ export async function updateExpenseAction(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const user = await getCurrentUser();
+  const userId = await requireUserId();
   const expenseId = text(formData, "expenseId");
 
   if (!isUuid(expenseId)) {
@@ -627,17 +751,23 @@ export async function updateExpenseAction(
   }
 
   const supabase = await createSupabaseServerClient();
-  const { data: existing, error: loadError } = await supabase
-    .from("expenses")
-    .select("id, group_id, created_by")
-    .eq("id", expenseId)
-    .maybeSingle();
+  const [{ data: existing, error: loadError }, myRole] = await Promise.all([
+    supabase
+      .from("expenses")
+      .select("id, group_id, created_by")
+      .eq("id", expenseId)
+      .maybeSingle(),
+    membershipRole(supabase, input.groupId, userId),
+  ]);
 
   if (loadError || !existing || existing.group_id !== input.groupId) {
     return { error: "That expense could not be found.", message: null };
   }
-  if (existing.created_by !== user.id) {
-    return { error: "You can only edit expenses you added.", message: null };
+  if (!canEditRow(myRole, existing.created_by === userId)) {
+    return {
+      error: "You can only edit expenses you added. Co-owners and the owner can edit any expense.",
+      message: null,
+    };
   }
 
   // The split rows are writable only by the expense author, so an in-place
@@ -659,10 +789,12 @@ export async function updateExpenseAction(
   if (createError || !createdId) {
     return {
       error:
-        createError?.message.includes("not a member") ||
-        createError?.message.includes("split member")
-          ? "Everyone on this expense must belong to the group."
-          : "Could not update the expense. Please try again.",
+        createError?.message.includes("not allowed")
+          ? "You no longer have permission to edit this expense."
+          : createError?.message.includes("not a member") ||
+              createError?.message.includes("split member")
+            ? "Everyone on this expense must belong to the group."
+            : "Could not update the expense. Please try again.",
       message: null,
     };
   }
@@ -694,7 +826,7 @@ export async function recordSettlementAction(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const user = await getCurrentUser();
+  const userId = await requireUserId();
   const groupId = text(formData, "groupId");
   const fromUser = text(formData, "fromUser");
   const toUser = text(formData, "toUser");
@@ -719,11 +851,18 @@ export async function recordSettlementAction(
   }
 
   const supabase = await createSupabaseServerClient();
-  const [fromRole, toRole] = await Promise.all([
+  const [myRole, fromRole, toRole] = await Promise.all([
+    membershipRole(supabase, groupId, userId),
     membershipRole(supabase, groupId, fromUser),
     membershipRole(supabase, groupId, toUser),
   ]);
 
+  if (!canEditLedger(myRole)) {
+    return {
+      error: "Viewers cannot record settlements. Ask an admin for Editor access.",
+      message: null,
+    };
+  }
   if (!fromRole || !toRole) {
     return { error: "Both people must belong to this group.", message: null };
   }
@@ -736,7 +875,7 @@ export async function recordSettlementAction(
     method: method as "upi" | "cash" | "bank_transfer" | "other",
     note: note || null,
     settled_at: DATE_PATTERN.test(settledAt) ? settledAt : new Date().toISOString().slice(0, 10),
-    created_by: user.id,
+    created_by: userId,
   });
 
   if (error) {
@@ -748,7 +887,7 @@ export async function recordSettlementAction(
 }
 
 export async function deleteExpenseAction(formData: FormData): Promise<void> {
-  await getCurrentUser();
+  await requireUserId();
   const expenseId = text(formData, "expenseId");
   const groupId = text(formData, "groupId");
 
@@ -780,7 +919,7 @@ export async function deleteExpenseAction(formData: FormData): Promise<void> {
 }
 
 export async function deleteSettlementAction(formData: FormData): Promise<void> {
-  await getCurrentUser();
+  await requireUserId();
   const settlementId = text(formData, "settlementId");
   const groupId = text(formData, "groupId");
 
@@ -812,7 +951,7 @@ export async function updateProfileAction(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const user = await getCurrentUser();
+  const userId = await requireUserId();
   const fullName = text(formData, "fullName");
   const city = text(formData, "city");
   const upiId = text(formData, "upiId");
@@ -828,7 +967,7 @@ export async function updateProfileAction(
   const { error } = await supabase
     .from("profiles")
     .update({ full_name: fullName, city: city || null, upi_id: upiId || null })
-    .eq("id", user.id);
+    .eq("id", userId);
 
   if (error) {
     return { error: "Could not save your profile.", message: null };

@@ -3,8 +3,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { displayName } from "@/lib/display-name";
 import { computeNetBalances, simplifyDebts } from "@/lib/money";
 import { isMissingSchemaMessage, SchemaMissingError } from "@/lib/data/errors";
+import { normalizeRole } from "@/lib/roles";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import type { Database } from "@/types/database";
+import type { Database, MemberRole } from "@/types/database";
 import type {
   ActivityItem,
   BalanceView,
@@ -34,15 +35,6 @@ interface Ledger {
   profiles: ProfileRow[];
 }
 
-const EMPTY_LEDGER: Ledger = {
-  groups: [],
-  memberships: [],
-  expenses: [],
-  splits: [],
-  settlements: [],
-  profiles: [],
-};
-
 const toRupees = (paise: number) => paise / 100;
 
 function fail(context: string, message: string): never {
@@ -66,109 +58,97 @@ function groupBy<T, K>(items: T[], key: (item: T) => K): Map<K, T[]> {
 
 /**
  * Loads every row needed to compute balances for the signed-in user,
- * optionally narrowed to a single group. RLS already limits rows to groups
- * the user belongs to.
+ * optionally narrowed to a single group.
+ *
+ * Every table's SELECT policy already limits rows to groups the user belongs
+ * to, so all six reads can run in one parallel wave. Fetching memberships
+ * first just to discover group ids is what used to make every page wait on
+ * four sequential Supabase round-trips.
  */
 async function loadLedger(
   supabase: Client,
-  userId: string,
   onlyGroupId?: string,
 ): Promise<Ledger> {
-  let membershipQuery = supabase
+  const groupsQuery = supabase
+    .from("groups")
+    .select("id, name, emoji, created_by, created_at, archived_at");
+  const membershipsQuery = supabase
     .from("group_members")
-    .select("group_id, user_id, role, joined_at")
-    .eq("user_id", userId);
+    .select("group_id, user_id, role, joined_at");
+  const expensesQuery = supabase
+    .from("expenses")
+    .select(
+      "id, group_id, title, amount_paise, paid_by, category, spent_at, notes, created_by, created_at, split_mode",
+    )
+    .order("spent_at", { ascending: false })
+    .order("created_at", { ascending: false });
+  const settlementsQuery = supabase
+    .from("settlements")
+    .select(
+      "id, group_id, from_user, to_user, amount_paise, method, note, settled_at, created_by, created_at",
+    )
+    .order("settled_at", { ascending: false });
+  const splitsQuery = supabase
+    .from("expense_splits")
+    .select("expense_id, user_id, share_paise, split_value");
+  const profilesQuery = supabase
+    .from("profiles")
+    .select("id, email, full_name, city, upi_id, created_at, updated_at");
 
-  if (onlyGroupId) {
-    membershipQuery = membershipQuery.eq("group_id", onlyGroupId);
-  }
-
-  const { data: mine, error: membershipError } = await membershipQuery;
-  if (membershipError) fail("your groups", membershipError.message);
-
-  const groupIds = [...new Set((mine ?? []).map((row) => row.group_id))];
-  if (groupIds.length === 0) return EMPTY_LEDGER;
-
-  const [groupsResult, membershipsResult, expensesResult, settlementsResult] =
-    await Promise.all([
-      supabase
-        .from("groups")
-        .select("id, name, emoji, created_by, created_at, archived_at")
-        .in("id", groupIds),
-      supabase
-        .from("group_members")
-        .select("group_id, user_id, role, joined_at")
-        .in("group_id", groupIds),
-      supabase
-        .from("expenses")
-        .select(
-          "id, group_id, title, amount_paise, paid_by, category, spent_at, notes, created_by, created_at, split_mode",
-        )
-        .in("group_id", groupIds)
-        .order("spent_at", { ascending: false })
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("settlements")
-        .select(
-          "id, group_id, from_user, to_user, amount_paise, method, note, settled_at, created_by, created_at",
-        )
-        .in("group_id", groupIds)
-        .order("settled_at", { ascending: false }),
-    ]);
+  const [
+    groupsResult,
+    membershipsResult,
+    expensesResult,
+    settlementsResult,
+    splitsResult,
+    profilesResult,
+  ] = await Promise.all([
+    onlyGroupId ? groupsQuery.eq("id", onlyGroupId) : groupsQuery,
+    onlyGroupId ? membershipsQuery.eq("group_id", onlyGroupId) : membershipsQuery,
+    onlyGroupId ? expensesQuery.eq("group_id", onlyGroupId) : expensesQuery,
+    onlyGroupId ? settlementsQuery.eq("group_id", onlyGroupId) : settlementsQuery,
+    splitsQuery,
+    profilesQuery,
+  ]);
 
   if (groupsResult.error) fail("your groups", groupsResult.error.message);
   if (membershipsResult.error) fail("group members", membershipsResult.error.message);
   if (expensesResult.error) fail("expenses", expensesResult.error.message);
   if (settlementsResult.error) fail("settlements", settlementsResult.error.message);
+  if (splitsResult.error) fail("expense splits", splitsResult.error.message);
+  if (profilesResult.error) fail("member profiles", profilesResult.error.message);
 
   const expenses = expensesResult.data ?? [];
-  const expenseIds = expenses.map((expense) => expense.id);
-
-  const splitsResult =
-    expenseIds.length > 0
-      ? await supabase
-          .from("expense_splits")
-          .select("expense_id, user_id, share_paise, split_value")
-          .in("expense_id", expenseIds)
-      : { data: [] as SplitRow[], error: null };
-
-  if (splitsResult.error) fail("expense splits", splitsResult.error.message);
-
+  const expenseIds = new Set(expenses.map((expense) => expense.id));
+  // Splits are RLS-filtered too, but keep only the rows that belong to the
+  // expenses in this view so a narrowed page never mentions another group.
+  const splits = (splitsResult.data ?? []).filter((split) =>
+    expenseIds.has(split.expense_id),
+  );
   const memberships = membershipsResult.data ?? [];
+  const settlements = settlementsResult.data ?? [];
+
   // Profiles are only readable while you share a group, so a member who has
   // already left disappears from this query. Ask for everyone the ledger
   // mentions anyway; the ones still visible keep their real names, and the
   // rest fall back to a neutral label below.
-  const profileIds = [
-    ...new Set([
-      ...memberships.map((row) => row.user_id),
-      ...expenses.map((row) => row.paid_by),
-      ...expenses.map((row) => row.created_by),
-      ...(splitsResult.data ?? []).map((row) => row.user_id),
-      ...(settlementsResult.data ?? []).flatMap((row) => [
-        row.from_user,
-        row.to_user,
-      ]),
-    ]),
-  ];
-
-  const profilesResult =
-    profileIds.length > 0
-      ? await supabase
-          .from("profiles")
-          .select("id, email, full_name, city, upi_id, created_at, updated_at")
-          .in("id", profileIds)
-      : { data: [] as ProfileRow[], error: null };
-
-  if (profilesResult.error) fail("member profiles", profilesResult.error.message);
+  const profileIds = new Set<string>([
+    ...memberships.map((row) => row.user_id),
+    ...expenses.map((row) => row.paid_by),
+    ...expenses.map((row) => row.created_by),
+    ...splits.map((row) => row.user_id),
+    ...settlements.flatMap((row) => [row.from_user, row.to_user]),
+  ]);
 
   return {
     groups: groupsResult.data ?? [],
     memberships,
     expenses,
-    splits: splitsResult.data ?? [],
-    settlements: settlementsResult.data ?? [],
-    profiles: profilesResult.data ?? [],
+    splits,
+    settlements,
+    profiles: (profilesResult.data ?? []).filter((profile) =>
+      profileIds.has(profile.id),
+    ),
   };
 }
 
@@ -244,9 +224,18 @@ function buildGroups(ledger: Ledger, userId: string): GroupView[] {
 
   return ledger.groups
     .map((group) => {
-      const members = (membersByGroup.get(group.id) ?? [])
-        .map((row) => people.get(row.user_id))
-        .filter((person): person is Person => Boolean(person))
+      const rows = membersByGroup.get(group.id) ?? [];
+      const role = normalizeRole(
+        rows.find((row) => row.user_id === userId)?.role ?? null,
+      );
+      const members = rows
+        .map((row): Person | null => {
+          const person = people.get(row.user_id);
+          return person
+            ? { ...person, role: normalizeRole(row.role) }
+            : null;
+        })
+        .filter((person): person is Person => person !== null)
         .sort((a, b) => a.name.localeCompare(b.name));
 
       return {
@@ -256,6 +245,7 @@ function buildGroups(ledger: Ledger, userId: string): GroupView[] {
         creatorId: group.created_by,
         members,
         memberCount: members.length,
+        role,
         netBalance: toRupees(netByGroup(ledger, group.id)[userId] ?? 0),
       };
     })
@@ -349,7 +339,7 @@ export async function getDashboardData(
   userId: string,
 ): Promise<DashboardData> {
   const supabase = await createSupabaseServerClient();
-  const ledger = await loadLedger(supabase, userId);
+  const ledger = await loadLedger(supabase);
 
   const groups = buildGroups(ledger, userId);
   const balances = buildPeerBalances(ledger, userId);
@@ -376,8 +366,84 @@ export async function getDashboardData(
 
 export async function getGroups(userId: string): Promise<GroupView[]> {
   const supabase = await createSupabaseServerClient();
-  const ledger = await loadLedger(supabase, userId);
+  const ledger = await loadLedger(supabase);
   return buildGroups(ledger, userId);
+}
+
+export interface GroupBasics {
+  id: string;
+  name: string;
+  emoji: string;
+  creatorId: string;
+  role: MemberRole | null;
+  members: Person[];
+}
+
+/**
+ * The light group loader for forms and settings. It skips expenses, splits,
+ * settlements, and balance maths, so opening "add expense" no longer pays for
+ * the full ledger.
+ */
+export async function getGroupBasics(
+  userId: string,
+  groupId: string,
+): Promise<GroupBasics | null> {
+  const supabase = await createSupabaseServerClient();
+  const [groupResult, membersResult, profilesResult] = await Promise.all([
+    supabase
+      .from("groups")
+      .select("id, name, emoji, created_by")
+      .eq("id", groupId)
+      .maybeSingle(),
+    supabase
+      .from("group_members")
+      .select("user_id, role")
+      .eq("group_id", groupId),
+    supabase.from("profiles").select("id, email, full_name, city"),
+  ]);
+
+  if (groupResult.error) fail("this group", groupResult.error.message);
+  if (membersResult.error) fail("group members", membersResult.error.message);
+  if (profilesResult.error) fail("member profiles", profilesResult.error.message);
+
+  const group = groupResult.data;
+  const rows = membersResult.data ?? [];
+  const myRow = rows.find((row) => row.user_id === userId);
+
+  // RLS filters groups you do not belong to, so a missing row means either the
+  // group is gone or you are not a member. Both should look like "not found".
+  if (!group || !myRow) return null;
+
+  const people = new Map(
+    (profilesResult.data ?? []).map((profile) => [
+      profile.id,
+      {
+        id: profile.id,
+        name: displayName(profile),
+        email: profile.email,
+        city: profile.city,
+      } satisfies Person,
+    ]),
+  );
+
+  const members = rows
+    .map((row): Person | null => {
+      const person = people.get(row.user_id);
+      return person
+        ? { ...person, role: normalizeRole(row.role) }
+        : null;
+    })
+    .filter((person): person is Person => person !== null)
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  return {
+    id: group.id,
+    name: group.name,
+    emoji: group.emoji,
+    creatorId: group.created_by,
+    role: normalizeRole(myRow.role),
+    members,
+  };
 }
 
 export async function getGroupDetail(
@@ -385,7 +451,7 @@ export async function getGroupDetail(
   groupId: string,
 ): Promise<GroupDetail | null> {
   const supabase = await createSupabaseServerClient();
-  const ledger = await loadLedger(supabase, userId, groupId);
+  const ledger = await loadLedger(supabase, groupId);
 
   const group = buildGroups(ledger, userId)[0];
   if (!group) return null;
@@ -432,9 +498,9 @@ export async function getGroupDetail(
   };
 }
 
-export async function getActivity(userId: string): Promise<ActivityItem[]> {
+export async function getActivity(): Promise<ActivityItem[]> {
   const supabase = await createSupabaseServerClient();
-  const ledger = await loadLedger(supabase, userId);
+  const ledger = await loadLedger(supabase);
   const people = memberMap(ledger);
   const groupNames = new Map(ledger.groups.map((group) => [group.id, group.name]));
 
@@ -477,7 +543,7 @@ export interface PersonSummary extends Person {
 
 export async function getPeople(userId: string): Promise<PersonSummary[]> {
   const supabase = await createSupabaseServerClient();
-  const ledger = await loadLedger(supabase, userId);
+  const ledger = await loadLedger(supabase);
   const people = memberMap(ledger);
 
   const sharedGroups = new Map<string, Set<string>>();

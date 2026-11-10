@@ -27,6 +27,13 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-muted: var(--brand-muted);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -64,6 +71,13 @@
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
+  --brand: oklch(0.53 0.19 274);
+  --brand-foreground: oklch(0.99 0 0);
+  --brand-muted: oklch(0.96 0.02 274);
+  --success: oklch(0.52 0.13 162);
+  --success-foreground: oklch(0.99 0 0);
+  --warning: oklch(0.72 0.14 72);
+  --warning-foreground: oklch(0.24 0.03 72);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
@@ -99,6 +113,13 @@
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
+  --brand: oklch(0.72 0.15 274);
+  --brand-foreground: oklch(0.16 0.02 274);
+  --brand-muted: oklch(0.3 0.06 274);
+  --success: oklch(0.74 0.14 162);
+  --success-foreground: oklch(0.15 0.02 162);
+  --warning: oklch(0.8 0.14 76);
+  --warning-foreground: oklch(0.2 0.03 76);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
@@ -126,5 +147,27 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+/* Marketing-only motion primitives. Components opt in with motion-safe. */
+@keyframes sn-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -10px, 0);
+  }
+}
+
+@keyframes sn-fade-up {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
   }
 }

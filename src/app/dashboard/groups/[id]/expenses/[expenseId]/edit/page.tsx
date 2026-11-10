@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { getCurrentUser } from "@/lib/auth/user";
 import { getGroupDetail } from "@/lib/data/groups";
+import { canEditRow } from "@/lib/roles";
 
 interface EditExpensePageProps {
   params: Promise<{ id: string; expenseId: string }>;
@@ -32,7 +33,10 @@ async function EditExpenseContent({ params }: EditExpensePageProps) {
   }
 
   const expense = detail.expenses.find((item) => item.id === expenseId);
-  if (!expense || expense.createdById !== user.id) {
+  if (
+    !expense ||
+    !canEditRow(detail.group.role, expense.createdById === user.id)
+  ) {
     notFound();
   }
 

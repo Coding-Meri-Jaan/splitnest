@@ -44,6 +44,9 @@ paid, who owes, and settle up in ₹.
      display names and repair existing profiles
    - `supabase/migrations/0004_custom_splits.sql` — custom split modes (exact
      amounts, percentages, weighted shares) and the matching expense RPC
+   - `supabase/migrations/0005_group_roles.sql` — Owner / Co-owner / Editor /
+     Viewer roles, backfilling existing members to Editor and new invites to
+     Viewer
 3. Copy the project URL and anon key from **Project Settings → API**.
 
 ## 2. Configure environment variables
@@ -305,17 +308,29 @@ Open <http://localhost:3000>, sign up, confirm the email, then create a group.
 
 ## Managing a nest
 
-- **Owners** can rename or delete a group and remove members from **Group
-  settings**.
-- **Members** can leave from the same screen. The owner cannot leave; they must
-  delete the group instead.
-- A member can only be removed or leave while they have no expenses or
-  settlements in the group. Delete that activity first.
-- **Expense authors** can edit or delete their own expenses. The group owner can
-  delete any expense, but can only edit their own. Editing recreates the expense
-  and its splits atomically, then removes the old row.
-- **Settlement authors** or the group owner can delete a settlement; recording a
-  new one recalculates balances and suggested transfers immediately.
+Every group has four roles:
+
+| Role     | Can do                                                                 |
+| -------- | ---------------------------------------------------------------------- |
+| Owner    | Everything, including deleting the group and changing roles.            |
+| Co-owner | Rename the group, manage Editors/Viewers, and edit any ledger row.      |
+| Editor   | Add expenses and settlements, and edit or delete the ones they added.   |
+| Viewer   | Read the group, its history, and its balances. Cannot make changes.     |
+
+- New invites default to **Viewer**. The Owner can promote them afterwards.
+  Existing `member` rows from before migration 0005 behave as **Editor**.
+- Owners and Co-owners manage members from **Group settings**. Co-owners cannot
+  remove other Co-owners or the Owner; only the Owner changes roles.
+- Anyone except the Owner can leave once their net balance in that group is
+  ₹0. Historical expenses and settlements stay readable to the remaining
+  members, and the person shows as a former member.
+- The Owner cannot leave; they must delete the group instead.
+- Owners and Co-owners can edit or delete any expense. Editors can edit or
+  delete only their own. Editing recreates the expense and its splits
+  atomically, then removes the old row.
+- Settlement authors, Co-owners, and the Owner can delete a settlement;
+  recording a new one recalculates balances and suggested transfers
+  immediately.
 
 ## Security model
 
@@ -323,10 +338,11 @@ Open <http://localhost:3000>, sign up, confirm the email, then create a group.
   settlements are writable by group members; profile rows are visible to you and
   people you share a group with.
 - **Helper functions are `security definer`** (`is_group_member`,
-  `is_group_owner`, `shares_group_with`) so policies don't recurse, and their
-  `search_path` is pinned to `''`.
-- **`find_user_for_invite`** lets a group owner resolve an email without opening
-  up the `profiles` table to the whole world.
+  `is_group_owner`, `shares_group_with`, plus the role-aware `group_role`,
+  `is_group_admin`, and `can_edit_group` from migration 0005) so policies don't
+  recurse, and their `search_path` is pinned to `''`.
+- **`find_user_for_invite`** lets an Owner or Co-owner resolve an email without
+  opening up the `profiles` table to the whole world.
 - **`create_expense`** writes the expense and all splits in one transaction and
   re-validates membership, split totals, and the percentage/share sums
   server-side. Editing an expense uses the same RPC, then deletes the old row
@@ -441,3 +457,7 @@ supabase/migrations/           # SQL schema, RLS, functions
    paise must stay deterministic.
 9. Open `/api/health`; `splitSchema` must read `ok` after migration 0004, and the
    next-step text must name 0004 when it is missing.
+10. After migration 0005, `rolesSchema` must read `ok` and the group settings
+    screen must offer Owner, Co-owner, Editor, and Viewer. Before 0005 it
+    reports `missing` and names `0005_group_roles.sql`; invites still work as
+    Editor in that state.

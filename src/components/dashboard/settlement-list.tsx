@@ -4,6 +4,7 @@ import { Amount } from "@/components/shared/amount";
 import { ConfirmSubmitButton } from "@/components/shared/confirm-submit-button";
 import { deleteSettlementAction } from "@/lib/data/actions";
 import { formatDate } from "@/lib/format";
+import { canEditRow, type GroupRole } from "@/lib/roles";
 import type { SettlementView } from "@/types";
 
 const METHOD_LABELS: Record<SettlementView["method"], string> = {
@@ -16,13 +17,14 @@ const METHOD_LABELS: Record<SettlementView["method"], string> = {
 interface SettlementListProps {
   settlements: SettlementView[];
   currentUserId: string;
-  isGroupOwner: boolean;
+  /** The signed-in user's role in the group that produced these rows. */
+  role: GroupRole | null;
 }
 
 export function SettlementList({
   settlements,
   currentUserId,
-  isGroupOwner,
+  role,
 }: SettlementListProps) {
   if (settlements.length === 0) {
     return (
@@ -35,8 +37,10 @@ export function SettlementList({
   return (
     <ul className="space-y-3">
       {settlements.map((settlement) => {
-        const canDelete =
-          settlement.createdById === currentUserId || isGroupOwner;
+        const canDelete = canEditRow(
+          role,
+          settlement.createdById === currentUserId,
+        );
 
         return (
           <li

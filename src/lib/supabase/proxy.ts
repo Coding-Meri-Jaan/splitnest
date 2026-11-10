@@ -1,4 +1,4 @@
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 import type { Database } from "@/types/database";
@@ -21,22 +21,39 @@ import {
   parseActivityCookie,
   shouldTouchActivity,
 } from "@/lib/auth/session";
+import {
+  USER_HEADER_NAMES,
+  setUserRequestHeaders,
+} from "@/lib/auth/user-headers";
 
 import { getSupabaseEnv, isSupabaseConfigured } from "./env";
+
+type PendingCookie = {
+  name: string;
+  value: string;
+  options: CookieOptions;
+};
 
 /**
  * Refreshes the Supabase session cookie on every request and performs
  * optimistic route protection.
  *
  * This is deliberately not the only auth check: every page, Server Action
- * and query re-verifies the user close to the data.
+ * and query re-verifies the user close to the data. To avoid asking Supabase
+ * Auth for the same user three times per save, the verified identity is passed
+ * down as request headers. They are stripped from the incoming request first,
+ * so they can only ever hold what this function verified.
  */
 export async function updateSession(request: NextRequest) {
-  let response = NextResponse.next({ request });
+  // Remove any client-supplied identity headers before the app can read them.
+  const requestHeaders = new Headers(request.headers);
+  for (const name of USER_HEADER_NAMES) {
+    requestHeaders.delete(name);
+  }
 
   // Keep the marketing site up even before Supabase is configured.
   if (!isSupabaseConfigured()) {
-    return response;
+    return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
   const { url, anonKey } = getSupabaseEnv();
@@ -44,6 +61,12 @@ export async function updateSession(request: NextRequest) {
   const remembered = isRemembered(
     request.cookies.get(SESSION_REMEMBER_COOKIE)?.value,
   );
+
+  // Auth refreshes happen while getUser() runs. Collect the cookies instead of
+  // writing them straight onto a response, because the identity headers can
+  // only be attached when the response is created after verification.
+  const pendingCookies: PendingCookie[] = [];
+  const pendingHeaders: [string, string][] = [];
 
   const supabase = createServerClient<Database>(url, anonKey, {
     cookies: {
@@ -54,16 +77,9 @@ export async function updateSession(request: NextRequest) {
         for (const { name, value } of cookiesToSet) {
           request.cookies.set(name, value);
         }
-        response = NextResponse.next({ request });
-        for (const { name, value, options: cookieOptions } of cookiesToSet) {
-          response.cookies.set(
-            name,
-            value,
-            authCookieOptions(cookieOptions, remembered, secure),
-          );
-        }
+        pendingCookies.push(...cookiesToSet);
         for (const [key, value] of Object.entries(headers)) {
-          response.headers.set(key, value);
+          pendingHeaders.push([key, value]);
         }
       },
     },
@@ -73,6 +89,27 @@ export async function updateSession(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  if (user) {
+    setUserRequestHeaders(requestHeaders, user);
+  }
+
+  const withAuth = (response: NextResponse) => {
+    for (const { name, value, options } of pendingCookies) {
+      response.cookies.set(
+        name,
+        value,
+        authCookieOptions(options, remembered, secure),
+      );
+    }
+    for (const [key, value] of pendingHeaders) {
+      response.headers.set(key, value);
+    }
+    return response;
+  };
+
+  const next = () =>
+    withAuth(NextResponse.next({ request: { headers: requestHeaders } }));
 
   const { pathname } = request.nextUrl;
   const now = Date.now();
@@ -128,8 +165,7 @@ export async function updateSession(request: NextRequest) {
       redirectUrl.searchParams.set("next", pathname);
     }
 
-    const redirect = NextResponse.redirect(redirectUrl);
-    withCookies(redirect, response);
+    const redirect = withAuth(NextResponse.redirect(redirectUrl));
     clearSessionCookiesOnResponse(redirect, request);
     return redirect;
   }
@@ -140,7 +176,7 @@ export async function updateSession(request: NextRequest) {
     // Email confirmation is the real anti-fake-address gate. The auth/confirm
     // route itself must be reachable so the link can be exchanged first.
     if (pathMatches(pathname, UNVERIFIED_REDIRECT_PREFIXES)) {
-      return redirectTo(request, response, "/verify-email");
+      return redirectTo(request, next(), "/verify-email");
     }
   }
 
@@ -149,7 +185,7 @@ export async function updateSession(request: NextRequest) {
     emailVerified &&
     pathMatches(pathname, SIGNED_IN_REDIRECT_PREFIXES)
   ) {
-    return redirectTo(request, response, "/dashboard");
+    return redirectTo(request, next(), "/dashboard");
   }
 
   if (!user && isProtected) {
@@ -159,8 +195,10 @@ export async function updateSession(request: NextRequest) {
     if (pathname !== "/dashboard" && !pathname.startsWith("/verify-email")) {
       redirectUrl.searchParams.set("next", pathname);
     }
-    return withCookies(NextResponse.redirect(redirectUrl), response);
+    return withAuth(NextResponse.redirect(redirectUrl));
   }
+
+  const response = next();
 
   // Signed-in people are allowed to open /login so they can see who they are
   // signed in as and switch accounts. Only refresh the idle marker here.
@@ -190,17 +228,14 @@ function isSecureRequest(request: NextRequest): boolean {
 
 function redirectTo(
   request: NextRequest,
-  source: NextResponse,
+  response: NextResponse,
   pathname: string,
 ): NextResponse {
   const redirectUrl = request.nextUrl.clone();
   redirectUrl.pathname = pathname;
   redirectUrl.search = "";
-  return withCookies(NextResponse.redirect(redirectUrl), source);
-}
-
-function withCookies(redirect: NextResponse, source: NextResponse) {
-  for (const cookie of source.cookies.getAll()) {
+  const redirect = NextResponse.redirect(redirectUrl);
+  for (const cookie of response.cookies.getAll()) {
     redirect.cookies.set(cookie);
   }
   return redirect;
