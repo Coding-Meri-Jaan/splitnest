@@ -5,7 +5,7 @@ import { SignupForm } from "@/components/auth/signup-form";
 import { getOptionalUser } from "@/lib/auth/user";
 
 export const metadata: Metadata = {
-  title: "Create account · SplitNest",
+  title: "Create account",
 };
 
 export default function SignupPage() {

@@ -7,7 +7,7 @@ import { readEmailCooldownSeconds } from "@/lib/auth/email-cooldown-server";
 import { getOptionalUser } from "@/lib/auth/user";
 
 export const metadata: Metadata = {
-  title: "Confirm your email – SplitNest",
+  title: "Confirm your email",
 };
 
 export default function VerifyEmailPage() {

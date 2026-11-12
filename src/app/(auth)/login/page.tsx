@@ -5,7 +5,7 @@ import { LoginForm } from "@/components/auth/login-form";
 import { getOptionalUser } from "@/lib/auth/user";
 
 export const metadata: Metadata = {
-  title: "Log in – SplitNest",
+  title: "Log in",
 };
 
 export default function LoginPage() {
