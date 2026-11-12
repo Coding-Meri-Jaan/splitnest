@@ -13,6 +13,31 @@
 -- ---------------------------------------------------------------------------
 -- Replace the enum in one transaction-safe step.
 -- ---------------------------------------------------------------------------
+
+-- If an earlier attempt stopped before the swap finished, remove the scratch
+-- type only when the role column is not using it yet. This makes the migration
+-- safe to re-run after a partial failure.
+do $$
+declare
+  v_scratch oid;
+  v_role_type oid;
+begin
+  select t.oid into v_scratch
+  from pg_type t
+  join pg_namespace n on n.oid = t.typnamespace
+  where n.nspname = 'public' and t.typname = 'member_role_new';
+
+  select atttypid into v_role_type
+  from pg_attribute
+  where attrelid = 'public.group_members'::regclass
+    and attname = 'role'
+    and not attisdropped;
+
+  if v_scratch is not null and v_role_type is distinct from v_scratch then
+    drop type public.member_role_new;
+  end if;
+end $$;
+
 do $$ begin
   create type public.member_role_new as enum ('owner', 'co_owner', 'editor', 'viewer');
 exception when duplicate_object then null; end $$;
@@ -30,8 +55,11 @@ alter table public.group_members
 
 alter table public.group_members alter column role set default 'viewer';
 
+-- group_role() returns member_role, so it must go before the type it uses.
+drop function if exists public.group_role(uuid);
 drop type if exists public.member_role;
-alter type public.member_role_new rename to public.member_role;
+-- RENAME TO takes an unqualified name; the type keeps the `public` schema.
+alter type public.member_role_new rename to member_role;
 
 -- ---------------------------------------------------------------------------
 -- Role helpers (SECURITY DEFINER avoids recursive RLS lookups)
