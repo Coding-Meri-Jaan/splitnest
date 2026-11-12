@@ -16,6 +16,7 @@ import {
   isSessionPastAbsoluteLimit,
   parseActivityCookie,
   providerLabel,
+  rememberCookieOptions,
   shouldTouchActivity,
   startedCookieOptions,
 } from "./session";
@@ -176,14 +177,14 @@ describe("authCookieOptions", () => {
 
     expect(options).not.toHaveProperty("maxAge");
     expect(options).not.toHaveProperty("expires");
-    expect(options).toMatchObject({ path: "/", secure: true });
+    expect(options).toMatchObject({ path: "/", secure: true, httpOnly: true });
   });
 
   it("caps a remembered session at 30 days", () => {
     const options = authCookieOptions(incoming, true, false);
 
     expect(options.maxAge).toBe(REMEMBERED_SESSION_MAX_AGE_SECONDS);
-    expect(options).toMatchObject({ path: "/", secure: false });
+    expect(options).toMatchObject({ path: "/", secure: false, httpOnly: true });
   });
 
   it("leaves deletion cookies alone", () => {
@@ -195,8 +196,13 @@ describe("authCookieOptions", () => {
 
 describe("session marker cookies", () => {
   it("stay session-only when remember me is off", () => {
-    expect(activityCookieOptions(false, true)).not.toHaveProperty("maxAge");
-    expect(startedCookieOptions(false, true)).not.toHaveProperty("maxAge");
+    const activity = activityCookieOptions(false, true);
+    const started = startedCookieOptions(false, true);
+
+    expect(activity).not.toHaveProperty("maxAge");
+    expect(started).not.toHaveProperty("maxAge");
+    expect(activity).toMatchObject({ httpOnly: true, secure: true });
+    expect(started).toMatchObject({ httpOnly: true, secure: true });
   });
 
   it("last 30 days when remember me is on", () => {
@@ -206,6 +212,17 @@ describe("session marker cookies", () => {
     expect(startedCookieOptions(true, false).maxAge).toBe(
       REMEMBERED_SESSION_MAX_AGE_SECONDS,
     );
+  });
+
+  it("marks every marker HttpOnly", () => {
+    expect(activityCookieOptions(true, true)).toMatchObject({ httpOnly: true });
+    expect(startedCookieOptions(true, true)).toMatchObject({ httpOnly: true });
+    expect(rememberCookieOptions(true)).toMatchObject({
+      httpOnly: true,
+      secure: true,
+      path: "/",
+      maxAge: REMEMBERED_SESSION_MAX_AGE_SECONDS,
+    });
   });
 });
 

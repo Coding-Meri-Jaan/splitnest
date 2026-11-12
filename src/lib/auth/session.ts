@@ -151,6 +151,9 @@ export function authCookieOptions<T extends object>(
   const next: Record<string, unknown> = {
     ...options,
     path: "/",
+    // The app reads auth cookies only on the server (proxy, Server Components,
+    // Server Actions), so JavaScript never needs access to the tokens.
+    httpOnly: true,
     sameSite: "lax",
     secure,
   };

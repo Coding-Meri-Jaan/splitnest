@@ -225,10 +225,14 @@ non-secret markers (`sn-activity`, `sn-remember`, `sn-started`). The proxy
 refreshes the token on every matched request and enforces inactivity plus a hard
 session limit:
 
-| Choice at sign-in | Cookie lifetime          | Idle timeout | Hard limit |
-| ----------------- | ------------------------ | ------------ | ---------- |
-| **Keep me signed in** | 30 days               | 7 days       | 30 days    |
-| Unchecked (default) | Browser session only   | 30 minutes   | 24 hours   |
+| Choice at sign-in         | Cookie lifetime        | Idle timeout | Hard limit |
+| ------------------------- | ---------------------- | ------------ | ---------- |
+| **Keep me signed in** (default) | 30 days         | 7 days       | 30 days    |
+| Unchecked                 | Browser session only   | 30 minutes   | 24 hours   |
+
+Auth and marker cookies are `HttpOnly`, `SameSite=Lax`, and `Secure` on HTTPS;
+the browser never needs the tokens because every Supabase call runs on the
+server.
 
 Sessions created before these markers existed fall back to Supabase's last
 sign-in time, so a stricter policy takes effect on the next request instead of
@@ -408,10 +412,10 @@ supabase/migrations/           # SQL schema, RLS, functions
 4. Visit `/login` and `/signup` while signed in; each should show the account
    chooser instead of an automatic redirect. **Use another account** signs you
    out on the device and returns you to the same auth screen.
-5. Sign in with **Keep me signed in** checked, close the browser, reopen it —
-   you should still be signed in.
-6. Sign in with it unchecked (the default); closing the browser should end the
-   session, and reloading `/dashboard` after 30 idle minutes should redirect to
+5. Sign in with **Keep me signed in** checked (the default), close the browser,
+   reopen it — you should still be signed in.
+6. Sign in with it unchecked; closing the browser should end the session, and
+   reloading `/dashboard` after 30 idle minutes should redirect to
    `/login?error=session-expired`.
 7. Open **Settings → Security**; check provider, last sign-in, and
    **Sign out everywhere**.

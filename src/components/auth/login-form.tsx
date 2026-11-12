@@ -61,7 +61,9 @@ export function LoginForm({ currentUser = null }: LoginFormProps) {
     resendVerificationAction,
     initialAuthState,
   );
-  const [remember, setRemember] = useState(false);
+  // Staying signed in is the default. The checkbox lets people opt out for a
+  // shared or public device.
+  const [remember, setRemember] = useState(true);
   const [email, setEmail] = useState("");
   const {
     remainingSeconds: resendRemaining,
@@ -224,17 +226,22 @@ export function LoginForm({ currentUser = null }: LoginFormProps) {
             <input
               type="checkbox"
               name="remember"
+              value="1"
               checked={remember}
               onChange={(event) => setRemember(event.target.checked)}
+              aria-describedby="remember-hint"
               className="mt-0.5 size-4 accent-brand"
             />
             <span>
               Keep me signed in on this device
-              <span className="block text-xs text-muted-foreground">
-                Off signs you out when the browser closes or after{" "}
-                {ephemeralMinutes} minutes of inactivity. On lasts up to{" "}
-                {rememberedDays} days, and ends after {rememberedIdleDays} days
-                without activity.
+              <span
+                id="remember-hint"
+                className="block text-xs text-muted-foreground"
+              >
+                On by default: stays signed in for up to {rememberedDays} days,
+                and ends after {rememberedIdleDays} days without activity. Off:
+                ends when the browser closes or after {ephemeralMinutes} minutes
+                of inactivity.
               </span>
             </span>
           </label>
