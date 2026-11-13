@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 
 import { Amount } from "@/components/shared/amount";
-import { Logo } from "@/components/shared/logo";
+import { SmartLogoLink } from "@/components/shared/smart-logo-link";
 import { MemberAvatar } from "@/components/shared/member-avatar";
 import { Badge } from "@/components/ui/badge";
 import { AvatarGroup } from "@/components/ui/avatar";
@@ -41,13 +41,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
   return (
     <div className="sn-aurora relative flex min-h-svh flex-col">
       <header className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-5 sm:px-6">
-        <Link
-          href="/"
-          aria-label="SplitNest home"
-          className="sn-focus-ring rounded-xl"
-        >
-          <Logo />
-        </Link>
+        <SmartLogoLink className="sn-focus-ring rounded-xl" />
         <Link
           href="/"
           className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"

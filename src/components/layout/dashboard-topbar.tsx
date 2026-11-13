@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   BellIcon,
   ChevronDownIcon,
@@ -45,6 +46,8 @@ interface DashboardTopbarProps {
 export function DashboardTopbar({ user }: DashboardTopbarProps) {
   const [open, setOpen] = useState(false);
   const logoutForm = useRef<HTMLFormElement>(null);
+  const searchParams = useSearchParams();
+  const searchQuery = searchParams.get("q") ?? "";
   const label = user.fullName || "Your account";
 
   return (
@@ -75,20 +78,38 @@ export function DashboardTopbar({ user }: DashboardTopbarProps) {
         </SheetContent>
       </Sheet>
 
-      <Link href="/" aria-label="SplitNest home" className="md:hidden">
+      <Link href="/dashboard" aria-label="SplitNest dashboard" className="md:hidden">
         <Logo showText={false} />
       </Link>
 
-      <div className="relative hidden max-w-sm flex-1 items-center sm:flex">
+      <Link
+        href="/dashboard/search"
+        aria-label="Search"
+        className={cn(
+          buttonVariants({ variant: "ghost", size: "icon-sm" }),
+          "text-muted-foreground sm:hidden"
+        )}
+      >
+        <SearchIcon />
+      </Link>
+
+      <form
+        role="search"
+        action="/dashboard/search"
+        className="relative hidden max-w-sm flex-1 items-center sm:flex"
+      >
         <SearchIcon className="pointer-events-none absolute left-3.5 size-4 text-muted-foreground" />
         <Input
+          key={searchQuery}
           type="search"
+          name="q"
+          defaultValue={searchQuery}
           aria-label="Search"
           placeholder="Search expenses, groups, people"
           className="h-9 rounded-full border-border/60 bg-card/60 pl-10 shadow-none"
-          disabled
+          enterKeyHint="search"
         />
-      </div>
+      </form>
 
       <div className="ml-auto flex items-center gap-1.5">
         <span className="relative">

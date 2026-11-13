@@ -4,6 +4,7 @@ import Link from "next/link";
 import { MenuIcon } from "lucide-react";
 
 import { Logo } from "@/components/shared/logo";
+import { SmartLogoLink } from "@/components/shared/smart-logo-link";
 import { buttonVariants } from "@/components/ui/button";
 import {
   Sheet,
@@ -24,13 +25,7 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
       <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-        <Link
-          href="/"
-          aria-label="SplitNest home"
-          className="rounded-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
-        >
-          <Logo />
-        </Link>
+        <SmartLogoLink className="rounded-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none" />
 
         <nav aria-label="Primary" className="hidden items-center gap-1 md:flex">
           {navItems.map((item) => (

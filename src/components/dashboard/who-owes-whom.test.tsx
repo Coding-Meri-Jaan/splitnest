@@ -67,4 +67,17 @@ describe("WhoOwesWhom", () => {
     expect(screen.getByText("Chen")).toBeDefined();
     expect(screen.getAllByText("Settled up").length).toBeGreaterThan(0);
   });
+
+  it("prefills the people search from a global search link", () => {
+    render(<WhoOwesWhom people={people} initialQuery="asha@" />);
+
+    const search = screen.getByRole("searchbox", {
+      name: "Search people",
+    }) as HTMLInputElement;
+
+    expect(search.value).toBe("asha@");
+    expect(screen.getByText("Showing 1 of 3 people")).toBeDefined();
+    expect(screen.getByText("Asha")).toBeDefined();
+    expect(screen.queryByText("Bilal")).toBeNull();
+  });
 });

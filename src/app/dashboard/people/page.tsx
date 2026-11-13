@@ -6,12 +6,17 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/ui/card";
 import { getCurrentUser } from "@/lib/auth/user";
 import { getPeople } from "@/lib/data/groups";
+import { normalizeSearchQuery } from "@/lib/search";
 
 export const metadata: Metadata = {
   title: "People",
 };
 
-export default function PeoplePage() {
+interface PeoplePageProps {
+  searchParams: Promise<{ q?: string | string[] }>;
+}
+
+export default function PeoplePage({ searchParams }: PeoplePageProps) {
   return (
     <div className="space-y-6">
       <PageHeader
@@ -20,14 +25,15 @@ export default function PeoplePage() {
         description="Everyone in your nests and how you stand with each of them."
       />
       <Suspense fallback={<PeopleSkeleton />}>
-        <PeopleList />
+        <PeopleList searchParams={searchParams} />
       </Suspense>
     </div>
   );
 }
 
-async function PeopleList() {
-  const user = await getCurrentUser();
+async function PeopleList({ searchParams }: PeoplePageProps) {
+  const [user, params] = await Promise.all([getCurrentUser(), searchParams]);
+  const initialQuery = normalizeSearchQuery(params.q);
   const people = await getPeople(user.id);
 
   if (people.length === 0) {
@@ -43,6 +49,7 @@ async function PeopleList() {
   return (
     <div className="sn-rise">
       <WhoOwesWhom
+        initialQuery={initialQuery}
         people={people.map((person) => ({
           id: person.id,
           name: person.name,

@@ -35,6 +35,8 @@ export interface WhoOwesWhomProps {
   className?: string;
   emptyMessage?: string;
   searchable?: boolean;
+  /** Prefills the search box, for links from the global search. */
+  initialQuery?: string;
 }
 
 const FILTERS: { value: BalanceDirection; label: string }[] = [
@@ -93,8 +95,9 @@ export function WhoOwesWhom({
   className,
   emptyMessage = "No people to show yet.",
   searchable = true,
+  initialQuery = "",
 }: WhoOwesWhomProps) {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [direction, setDirection] = useState<BalanceDirection>("all");
   const searchId = useId();
 

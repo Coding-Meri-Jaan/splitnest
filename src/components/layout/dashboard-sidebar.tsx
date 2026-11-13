@@ -143,8 +143,8 @@ export function DashboardSidebar() {
     <div className="flex h-full flex-col">
       <div className="flex h-18 items-center px-5">
         <Link
-          href="/"
-          aria-label="SplitNest home"
+          href="/dashboard"
+          aria-label="SplitNest dashboard"
           className="sn-focus-ring rounded-xl"
         >
           <Logo />
