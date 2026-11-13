@@ -183,9 +183,11 @@ export function SearchSuggest({
     setQuery(value);
     setActiveIndex(-1);
 
-    if (value.trim()) {
+    const nextTrimmed = value.trim();
+    if (nextTrimmed) {
       setOpen(true);
-      setLoading(true);
+      // A new fragment needs a lookup; the same one can reuse cached rows.
+      if (nextTrimmed !== trimmed) setLoading(true);
     } else {
       setOpen(false);
       setSuggestions([]);
