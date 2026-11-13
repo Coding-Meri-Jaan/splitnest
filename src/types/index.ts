@@ -1,14 +1,21 @@
 import type { MemberRole } from "./database";
 
-export type CategoryId =
-  | "food"
-  | "travel"
-  | "groceries"
-  | "rent"
-  | "utilities"
-  | "entertainment"
-  | "shopping"
-  | "other";
+export const CATEGORY_IDS = [
+  "food",
+  "travel",
+  "groceries",
+  "rent",
+  "utilities",
+  "entertainment",
+  "shopping",
+  "other",
+] as const;
+
+export type CategoryId = (typeof CATEGORY_IDS)[number];
+
+export function isCategoryId(value: string): value is CategoryId {
+  return (CATEGORY_IDS as readonly string[]).includes(value);
+}
 
 export type ExpenseSplitMode = "equal" | "amount" | "percentage" | "shares";
 

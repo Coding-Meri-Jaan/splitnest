@@ -26,7 +26,7 @@ type SplitRow = Database["public"]["Tables"]["expense_splits"]["Row"];
 type SettlementRow = Database["public"]["Tables"]["settlements"]["Row"];
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 
-interface Ledger {
+export interface Ledger {
   groups: GroupRow[];
   memberships: MembershipRow[];
   expenses: ExpenseRow[];
@@ -65,7 +65,7 @@ function groupBy<T, K>(items: T[], key: (item: T) => K): Map<K, T[]> {
  * first just to discover group ids is what used to make every page wait on
  * four sequential Supabase round-trips.
  */
-async function loadLedger(
+export async function loadLedger(
   supabase: Client,
   onlyGroupId?: string,
 ): Promise<Ledger> {
@@ -170,7 +170,7 @@ function ledgerParticipantIds(ledger: Ledger): Set<string> {
   return ids;
 }
 
-function memberMap(ledger: Ledger): Map<string, Person> {
+export function memberMap(ledger: Ledger): Map<string, Person> {
   const people = new Map(
     ledger.profiles.map((profile) => [
       profile.id,
@@ -218,7 +218,7 @@ function netByGroup(ledger: Ledger, groupId: string): Record<string, number> {
   );
 }
 
-function buildGroups(ledger: Ledger, userId: string): GroupView[] {
+export function buildGroups(ledger: Ledger, userId: string): GroupView[] {
   const people = memberMap(ledger);
   const membersByGroup = groupBy(ledger.memberships, (row) => row.group_id);
 

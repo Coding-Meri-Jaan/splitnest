@@ -43,6 +43,39 @@ export function formatSignedINR(amount: number): string {
   return formatted;
 }
 
+/** Formats integer paise for display, converting exactly at the edge. */
+export function formatPaise(paise: number): string {
+  return formatINR(paise / 100);
+}
+
+export function formatSignedPaise(paise: number): string {
+  return formatSignedINR(paise / 100);
+}
+
+/**
+ * Compact rupee label for chart axes ("₹1.2L", "₹8k"). Accepts paise because
+ * every caller in the dashboard works in paise.
+ */
+export function formatCompactINR(paise: number): string {
+  const rupees = Math.abs(paise) / 100;
+  const sign = paise < 0 ? "-" : "";
+
+  if (rupees >= 1_00_00_000) {
+    return `${sign}₹${trimZero(rupees / 1_00_00_000)}Cr`;
+  }
+  if (rupees >= 1_00_000) {
+    return `${sign}₹${trimZero(rupees / 1_00_000)}L`;
+  }
+  if (rupees >= 1_000) {
+    return `${sign}₹${trimZero(rupees / 1_000)}k`;
+  }
+  return `${sign}₹${Math.round(rupees)}`;
+}
+
+function trimZero(value: number): string {
+  return value.toFixed(1).replace(/\.0$/, "");
+}
+
 export function formatDate(iso: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) {

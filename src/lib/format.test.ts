@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  formatCompactINR,
   formatDate,
   formatINR,
   formatINRPrecise,
+  formatPaise,
   formatSignedINR,
+  formatSignedPaise,
   getInitials,
 } from "./format";
 
@@ -73,5 +76,38 @@ describe("getInitials", () => {
 
   it("falls back to a question mark for empty input", () => {
     expect(getInitials("   ")).toBe("?");
+  });
+});
+
+describe("formatPaise", () => {
+  it("converts integer paise exactly at the display edge", () => {
+    expect(formatPaise(0)).toBe("₹0");
+    expect(formatPaise(1)).toBe("₹0.01");
+    expect(formatPaise(12_500)).toBe("₹125");
+    expect(formatPaise(123_456)).toBe("₹1,234.56");
+  });
+
+  it("signs paise values when asked", () => {
+    expect(formatSignedPaise(1_000)).toBe("+₹10");
+    expect(formatSignedPaise(-1_000)).toBe("-₹10");
+    expect(formatSignedPaise(0)).toBe("₹0");
+  });
+});
+
+describe("formatCompactINR", () => {
+  it("keeps small values in whole rupees", () => {
+    expect(formatCompactINR(0)).toBe("₹0");
+    expect(formatCompactINR(85_000)).toBe("₹850");
+  });
+
+  it("compacts thousands, lakhs and crores from paise", () => {
+    expect(formatCompactINR(1_20_000)).toBe("₹1.2k");
+    expect(formatCompactINR(1_00_00_000)).toBe("₹1L");
+    expect(formatCompactINR(2_50_00_000)).toBe("₹2.5L");
+    expect(formatCompactINR(1_00_00_00_000)).toBe("₹1Cr");
+  });
+
+  it("preserves the sign on negative values", () => {
+    expect(formatCompactINR(-1_20_000)).toBe("-₹1.2k");
   });
 });
