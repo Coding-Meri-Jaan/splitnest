@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { SidebarNav } from "@/components/layout/dashboard-sidebar";
+import { SearchSuggest } from "@/components/search/search-suggest";
 import { Logo } from "@/components/shared/logo";
 import { MemberAvatar } from "@/components/shared/member-avatar";
 import { buttonVariants } from "@/components/ui/button";
@@ -25,7 +26,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import {
   Sheet,
   SheetContent,
@@ -93,23 +93,13 @@ export function DashboardTopbar({ user }: DashboardTopbarProps) {
         <SearchIcon />
       </Link>
 
-      <form
-        role="search"
-        action="/dashboard/search"
-        className="relative hidden max-w-sm flex-1 items-center sm:flex"
-      >
-        <SearchIcon className="pointer-events-none absolute left-3.5 size-4 text-muted-foreground" />
-        <Input
-          key={searchQuery}
-          type="search"
-          name="q"
-          defaultValue={searchQuery}
-          aria-label="Search"
-          placeholder="Search expenses, groups, people"
-          className="h-9 rounded-full border-border/60 bg-card/60 pl-10 shadow-none"
-          enterKeyHint="search"
-        />
-      </form>
+      <SearchSuggest
+        key={searchQuery}
+        initialQuery={searchQuery}
+        ariaLabel="Search"
+        inputClassName="h-9 rounded-full border-border/60 bg-card/60 shadow-none"
+        className="hidden max-w-sm flex-1 sm:block"
+      />
 
       <div className="ml-auto flex items-center gap-1.5">
         <span className="relative">

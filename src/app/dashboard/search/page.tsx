@@ -12,6 +12,7 @@ import {
 
 import { Amount } from "@/components/shared/amount";
 import { PageHeader } from "@/components/shared/page-header";
+import { SearchSuggest } from "@/components/search/search-suggest";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +22,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { getCurrentUser } from "@/lib/auth/user";
 import { searchEverything } from "@/lib/data/search";
 import type { SearchResult } from "@/lib/search";
@@ -88,30 +88,14 @@ async function SearchResults({ searchParams }: SearchPageProps) {
 
   return (
     <div className="space-y-5">
-      <form
-        role="search"
-        action="/dashboard/search"
-        className="flex flex-col gap-2 sm:flex-row"
-      >
-        <div className="relative flex-1">
-          <SearchIcon
-            aria-hidden
-            className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground"
-          />
-          <Input
-            type="search"
-            name="q"
-            defaultValue={outcome.query}
-            placeholder="Search expenses, groups, people"
-            aria-label="Search expenses, groups, people"
-            className="h-11 pl-10"
-            autoFocus={!outcome.query}
-          />
-        </div>
-        <Button type="submit" className="h-11 px-5">
-          Search
-        </Button>
-      </form>
+      <SearchSuggest
+        initialQuery={outcome.query}
+        autoFocus={!outcome.query}
+        showSubmitButton
+        placeholder="Search expenses, groups, people"
+        ariaLabel="Search expenses, groups, people"
+        inputClassName="h-11"
+      />
 
       {!outcome.query ? (
         <SearchPrompt />
