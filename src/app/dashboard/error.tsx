@@ -12,10 +12,10 @@ import { SCHEMA_MISSING_DIGEST } from "@/lib/data/errors";
  */
 export default function DashboardError({
   error,
-  reset,
+  retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  retry: () => void;
 }) {
   const looksLikeMissingSchema =
     error.digest === SCHEMA_MISSING_DIGEST ||
@@ -34,7 +34,7 @@ export default function DashboardError({
           : "We could not load this page. Press Try again, and if it keeps happening open the setup report."}
       </p>
       <div className="flex flex-wrap gap-3">
-        <Button onClick={reset}>Try again</Button>
+        <Button onClick={retry}>Try again</Button>
         <Link
           href="/api/health"
           className={buttonVariants({ variant: "outline" })}

@@ -488,7 +488,9 @@ export async function resendVerificationAction(
 
 export async function logoutAction(): Promise<void> {
   await performSignOut("local");
-  redirect("/");
+  // Return to the sign-in screen with an explicit confirmation, so signing out
+  // never looks like the marketing page simply reloaded.
+  redirect("/login?message=signed-out");
 }
 
 /** Invalidates refresh tokens on every device, then clears this browser. */

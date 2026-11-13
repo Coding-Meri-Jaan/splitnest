@@ -5,10 +5,10 @@
  * dependency-free and inline-styled because global CSS is not loaded here.
  */
 export default function GlobalError({
-  reset,
+  retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  retry: () => void;
 }) {
   return (
     <html lang="en">
@@ -43,7 +43,7 @@ export default function GlobalError({
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             <button
               type="button"
-              onClick={reset}
+              onClick={retry}
               style={{
                 padding: "8px 14px",
                 borderRadius: 8,
@@ -53,7 +53,7 @@ export default function GlobalError({
                 cursor: "pointer",
               }}
             >
-              Reload
+              Try again
             </button>
             <a
               href="/api/health"

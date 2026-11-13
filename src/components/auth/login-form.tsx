@@ -49,6 +49,7 @@ const LINK_ERRORS: Record<string, string> = {
 };
 
 const MESSAGES: Record<string, string> = {
+  "signed-out": "You've been signed out. See you soon.",
   "switched-account":
     "You've been signed out on this device. Sign in with another account.",
   "signed-out-everywhere": "You've been signed out on every device.",
