@@ -66,26 +66,6 @@ export function DashboardTopbar({ user }: DashboardTopbarProps) {
         session cookies behind, which made "Sign out" appear to do nothing.
       */}
       <form ref={logoutForm} action={logoutAction} className="hidden" />
-      <Sheet open={open} onOpenChange={(next) => setOpen(next)}>
-        <SheetTrigger
-          aria-label="Open navigation"
-          className={cn(
-            buttonVariants({ variant: "ghost", size: "icon-sm" }),
-            "md:hidden"
-          )}
-        >
-          <MenuIcon />
-        </SheetTrigger>
-        <SheetContent side="left" className="w-72 p-0">
-          <SheetHeader className="border-b border-border/60">
-            <SheetTitle className="flex items-center">
-              <Logo />
-            </SheetTitle>
-          </SheetHeader>
-          <SidebarNav onNavigate={() => setOpen(false)} />
-        </SheetContent>
-      </Sheet>
-
       <Link href="/dashboard" aria-label="SplitNest dashboard" className="md:hidden">
         <Logo showText={false} />
       </Link>
@@ -129,7 +109,7 @@ export function DashboardTopbar({ user }: DashboardTopbarProps) {
 
       <div className="ml-auto flex items-center gap-1.5">
         <ThemeToggle />
-        <span className="relative">
+        <span className="relative hidden sm:inline">
           <span
             aria-hidden
             className="absolute top-1.5 right-1.5 z-10 size-1.5 rounded-full bg-brand shadow-[0_0_8px_var(--brand)]"
@@ -175,6 +155,26 @@ export function DashboardTopbar({ user }: DashboardTopbarProps) {
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <Sheet open={open} onOpenChange={(next) => setOpen(next)}>
+          <SheetTrigger
+            aria-label="Open navigation"
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "icon-sm" }),
+              "md:hidden"
+            )}
+          >
+            <MenuIcon />
+          </SheetTrigger>
+          <SheetContent side="left" className="w-72 p-0">
+            <SheetHeader className="border-b border-border/60">
+              <SheetTitle className="flex items-center">
+                <Logo />
+              </SheetTitle>
+            </SheetHeader>
+            <SidebarNav onNavigate={() => setOpen(false)} />
+          </SheetContent>
+        </Sheet>
       </div>
     </header>
   );
