@@ -299,7 +299,7 @@ export function SearchSuggest({
 
       {showPanel ? (
         <div
-          className="absolute inset-x-0 top-full z-50 mt-2 overflow-hidden rounded-2xl border border-border/70 bg-popover/95 shadow-xl shadow-black/10 backdrop-blur-xl"
+          className="absolute inset-x-0 top-full z-[60] mt-2 overflow-hidden rounded-2xl border border-border bg-popover text-popover-foreground shadow-2xl shadow-black/20"
         >
           {loading && suggestions.length === 0 ? (
             <p className="flex items-center gap-2 px-4 py-3 text-sm text-muted-foreground">

@@ -8,12 +8,19 @@ import {
   ChevronDownIcon,
   LogOutIcon,
   MenuIcon,
+  PanelLeftCloseIcon,
+  PanelLeftOpenIcon,
   SearchIcon,
   SettingsIcon,
 } from "lucide-react";
 
 import { SidebarNav } from "@/components/layout/dashboard-sidebar";
+import {
+  toggleSidebar,
+  useSidebarCollapsed,
+} from "@/components/layout/sidebar-store";
 import { SearchSuggest } from "@/components/search/search-suggest";
+import { ThemeToggle } from "@/components/theme/theme-controls";
 import { Logo } from "@/components/shared/logo";
 import { MemberAvatar } from "@/components/shared/member-avatar";
 import { buttonVariants } from "@/components/ui/button";
@@ -45,13 +52,14 @@ interface DashboardTopbarProps {
 
 export function DashboardTopbar({ user }: DashboardTopbarProps) {
   const [open, setOpen] = useState(false);
+  const collapsed = useSidebarCollapsed();
   const logoutForm = useRef<HTMLFormElement>(null);
   const searchParams = useSearchParams();
   const searchQuery = searchParams.get("q") ?? "";
   const label = user.fullName || "Your account";
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border/50 bg-background/55 px-4 backdrop-blur-xl md:px-8">
+    <header className="sticky top-0 z-50 flex h-16 items-center gap-3 border-b border-border/50 bg-background/60 px-4 backdrop-blur-xl md:px-10">
       {/*
         Submit the server action through a real form. Calling the action
         directly from onClick can race with the menu closing and leave the
@@ -82,6 +90,24 @@ export function DashboardTopbar({ user }: DashboardTopbarProps) {
         <Logo showText={false} />
       </Link>
 
+      <button
+        type="button"
+        onClick={toggleSidebar}
+        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        aria-pressed={collapsed}
+        title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        className={cn(
+          buttonVariants({ variant: "ghost", size: "icon-sm" }),
+          "hidden text-muted-foreground md:inline-flex",
+        )}
+      >
+        {collapsed ? (
+          <PanelLeftOpenIcon aria-hidden />
+        ) : (
+          <PanelLeftCloseIcon aria-hidden />
+        )}
+      </button>
+
       <Link
         href="/dashboard/search"
         aria-label="Search"
@@ -98,10 +124,11 @@ export function DashboardTopbar({ user }: DashboardTopbarProps) {
         initialQuery={searchQuery}
         ariaLabel="Search"
         inputClassName="h-9 rounded-full border-border/60 bg-card/60 shadow-none"
-        className="hidden max-w-sm flex-1 sm:block"
+        className="hidden max-w-md flex-1 sm:block"
       />
 
       <div className="ml-auto flex items-center gap-1.5">
+        <ThemeToggle />
         <span className="relative">
           <span
             aria-hidden

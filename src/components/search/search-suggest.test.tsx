@@ -119,6 +119,22 @@ describe("SearchSuggest", () => {
     expect(screen.queryByRole("listbox")).toBeNull();
   });
 
+  it("renders the suggestion panel fully opaque above page chrome", async () => {
+    stubFetch();
+    render(<SearchSuggest debounceMs={0} ariaLabel="Search" />);
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Search" }), {
+      target: { value: "go" },
+    });
+
+    const panel = (await screen.findByRole("listbox")).parentElement;
+
+    expect(panel?.className).toContain("bg-popover");
+    expect(panel?.className).not.toContain("bg-popover/95");
+    expect(panel?.className).not.toContain("backdrop-blur");
+    expect(panel?.className).toContain("z-[60]");
+  });
+
   it("prefills the query and submits to the search page", () => {
     stubFetch();
     render(

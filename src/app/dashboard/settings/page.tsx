@@ -6,6 +6,7 @@ import { ProfileForm } from "@/components/dashboard/profile-form";
 import { SecuritySettings } from "@/components/dashboard/security-settings";
 import { MemberAvatar } from "@/components/shared/member-avatar";
 import { PageHeader } from "@/components/shared/page-header";
+import { ThemePreferenceControl } from "@/components/theme/theme-controls";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCurrentUser } from "@/lib/auth/user";
@@ -20,7 +21,7 @@ export default function SettingsPage() {
       <PageHeader
         eyebrow="Account"
         title="Settings"
-        description="Your profile, sign-in details, and sessions."
+        description="Your profile, appearance, sign-in details, and sessions."
       />
       <Suspense fallback={<div className="h-96 sn-skeleton rounded-2xl" />}>
         <SettingsContent />
@@ -79,6 +80,18 @@ async function SettingsContent() {
       </Card>
 
       <Card className="sn-rise sn-delay-2">
+        <CardHeader>
+          <CardTitle>Appearance</CardTitle>
+          <CardDescription>
+            Pick a theme, or let SplitNest follow your device setting.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ThemePreferenceControl />
+        </CardContent>
+      </Card>
+
+      <Card className="sn-rise sn-delay-3">
         <CardHeader>
           <CardTitle>Security</CardTitle>
           <CardDescription>

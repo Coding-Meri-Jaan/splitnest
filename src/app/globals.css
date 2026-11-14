@@ -393,7 +393,9 @@
     border-radius: 0.75rem;
     border: 1px solid var(--input);
     background-color: color-mix(in oklch, var(--card) 70%, transparent);
-    padding: 0 0.875rem;
+    /* Extra room on the right keeps the native chevron clear of long labels. */
+    padding: 0 2.5rem 0 0.875rem;
+    text-overflow: ellipsis;
     font-size: 0.875rem;
     color: var(--foreground);
     outline: none;
@@ -417,7 +419,7 @@
     height: 2.25rem;
     width: auto;
     border-radius: 0.6rem;
-    padding: 0 0.5rem;
+    padding: 0 1.75rem 0 0.5rem;
     font-size: 0.75rem;
   }
 
@@ -544,6 +546,29 @@
   }
 }
 
+@keyframes sn-pending-slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+
+.sn-pending-bar {
+  height: 2px;
+  width: 40%;
+  border-radius: 999px;
+  background-image: linear-gradient(
+    90deg,
+    transparent,
+    var(--brand) 35%,
+    var(--primary) 65%,
+    transparent
+  );
+  animation: sn-pending-slide 1.2s ease-in-out infinite;
+}
+
 .sn-enter {
   animation: sn-fade-up 0.65s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -612,6 +637,7 @@
   .sn-float,
   .sn-pulse-soft,
   .sn-skeleton,
+  .sn-pending-bar,
   .sn-btn-primary::after {
     animation: none !important;
     transition: none !important;

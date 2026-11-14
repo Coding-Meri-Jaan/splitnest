@@ -3,10 +3,10 @@
 import {
   CheckIcon,
   FilterIcon,
+  LoaderCircleIcon,
   RotateCcwIcon,
   SlidersHorizontalIcon,
 } from "lucide-react";
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -44,6 +44,15 @@ interface FilterState {
   category: string;
   granularity: TrendGranularity;
 }
+
+const DEFAULT_FILTERS: FilterState = {
+  range: "all",
+  from: "",
+  to: "",
+  groupId: "",
+  category: "",
+  granularity: "monthly",
+};
 
 function toState(active: ResolvedAnalyticsFilters): FilterState {
   return {
@@ -146,6 +155,17 @@ function FiltersForm({
     }
   }
 
+  /**
+   * A custom range can be staged locally without ever changing the URL, so the
+   * old `<Link href={pathname}>` reset was a no-op. Reset the local state too.
+   */
+  function resetFilters() {
+    setState(DEFAULT_FILTERS);
+    startTransition(() => {
+      router.replace(pathname, { scroll: false });
+    });
+  }
+
   const groupName = state.groupId
     ? groups.find((group) => group.id === state.groupId)?.name
     : null;
@@ -185,37 +205,58 @@ function FiltersForm({
   return (
     <section
       aria-label="Dashboard filters"
-      className="sn-surface rounded-2xl p-4"
+      aria-busy={isPending}
+      data-pending={isPending ? "true" : undefined}
+      className="sn-surface relative overflow-hidden rounded-2xl p-5 sm:p-6"
     >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="flex size-8 items-center justify-center rounded-lg sn-tint-brand">
+      {isPending ? (
+        <span aria-hidden className="sn-pending-bar absolute inset-x-0 top-0" />
+      ) : null}
+
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex size-9 items-center justify-center rounded-xl sn-tint-brand">
             <FilterIcon className="size-4" aria-hidden />
           </span>
           <div className="min-w-0">
             <p className="text-sm font-semibold">Filters</p>
-            <p className="truncate text-xs text-muted-foreground">
-              {isPending ? "Updating…" : resultLabel}
+            <p
+              aria-live="polite"
+              className="flex items-center gap-1.5 truncate text-xs text-muted-foreground"
+            >
+              {isPending ? (
+                <>
+                  <LoaderCircleIcon
+                    aria-hidden
+                    className="size-3 animate-spin motion-reduce:animate-none"
+                  />
+                  Updating…
+                </>
+              ) : (
+                resultLabel
+              )}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+
+        <div className="flex items-center gap-2.5">
           <Badge variant="outline" className="hidden sm:inline-flex">
             <SlidersHorizontalIcon aria-hidden />
             {state.granularity === "monthly" ? "Monthly view" : "Yearly view"}
           </Badge>
-          <Link
-            href={pathname}
-            className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
+          <button
+            type="button"
+            onClick={resetFilters}
+            className="inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           >
-            <RotateCcwIcon className="size-3.5" aria-hidden />
+            <RotateCcwIcon className="size-4" aria-hidden />
             Reset
-          </Link>
+          </button>
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-end gap-3">
-        <label className="flex min-w-[9.5rem] flex-1 flex-col gap-1.5 text-xs font-medium text-muted-foreground">
+      <div className="mt-5 flex flex-wrap items-end gap-3 sm:gap-4">
+        <label className="flex min-w-[10rem] flex-1 flex-col gap-2 text-xs font-medium text-muted-foreground">
           Period
           <select
             value={state.range}
@@ -232,7 +273,7 @@ function FiltersForm({
 
         {state.range === "custom" ? (
           <>
-            <label className="flex min-w-[9rem] flex-1 flex-col gap-1.5 text-xs font-medium text-muted-foreground">
+            <label className="flex min-w-[9.5rem] flex-1 flex-col gap-2 text-xs font-medium text-muted-foreground">
               From
               <Input
                 type="date"
@@ -241,7 +282,7 @@ function FiltersForm({
                 onChange={(event) => onCustomDate("from", event.target.value)}
               />
             </label>
-            <label className="flex min-w-[9rem] flex-1 flex-col gap-1.5 text-xs font-medium text-muted-foreground">
+            <label className="flex min-w-[9.5rem] flex-1 flex-col gap-2 text-xs font-medium text-muted-foreground">
               To
               <Input
                 type="date"
@@ -253,7 +294,7 @@ function FiltersForm({
           </>
         ) : null}
 
-        <label className="flex min-w-[9.5rem] flex-1 flex-col gap-1.5 text-xs font-medium text-muted-foreground">
+        <label className="flex min-w-[10rem] flex-1 flex-col gap-2 text-xs font-medium text-muted-foreground">
           Group
           <select
             value={state.groupId}
@@ -271,7 +312,7 @@ function FiltersForm({
           </select>
         </label>
 
-        <label className="flex min-w-[9.5rem] flex-1 flex-col gap-1.5 text-xs font-medium text-muted-foreground">
+        <label className="flex min-w-[10rem] flex-1 flex-col gap-2 text-xs font-medium text-muted-foreground">
           Category
           <select
             value={state.category}
@@ -289,7 +330,7 @@ function FiltersForm({
           </select>
         </label>
 
-        <div className="flex flex-col gap-1.5 text-xs font-medium text-muted-foreground">
+        <div className="flex flex-col gap-2 text-xs font-medium text-muted-foreground">
           Trend
           <div
             role="group"
@@ -305,7 +346,7 @@ function FiltersForm({
                   aria-pressed={selected}
                   onClick={() => update({ ...state, granularity: value })}
                   className={cn(
-                    "inline-flex h-8 items-center gap-1 rounded-lg px-2.5 text-xs font-semibold capitalize transition-colors",
+                    "inline-flex h-8 items-center gap-1 rounded-lg px-3 text-xs font-semibold capitalize transition-colors",
                     selected
                       ? "bg-brand/12 text-brand ring-1 ring-brand/15"
                       : "text-muted-foreground hover:text-foreground",
@@ -321,7 +362,7 @@ function FiltersForm({
       </div>
 
       {chips.length > 0 ? (
-        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+        <div className="mt-4 flex flex-wrap items-center gap-2">
           <span className="text-[0.68rem] font-semibold tracking-[0.1em] text-muted-foreground uppercase">
             Active
           </span>

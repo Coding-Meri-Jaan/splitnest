@@ -89,7 +89,7 @@ async function Overview({ searchParams }: DashboardPageProps) {
   const resultLabel = resultParts.join(" · ");
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader
         eyebrow="Your money, at a glance"
         title={firstName ? `Welcome back, ${firstName}` : "Welcome back"}
@@ -144,7 +144,7 @@ async function Overview({ searchParams }: DashboardPageProps) {
             </div>
           ) : null}
 
-          <section aria-labelledby="overview-heading" className="space-y-3">
+          <section aria-labelledby="overview-heading" className="space-y-4">
             <div className="flex flex-wrap items-end justify-between gap-2">
               <div>
                 <h2
@@ -161,7 +161,7 @@ async function Overview({ searchParams }: DashboardPageProps) {
               <Badge variant="outline">Live balances</Badge>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
               <SummaryCard
                 label="Total paid"
                 value={
@@ -240,7 +240,7 @@ async function Overview({ searchParams }: DashboardPageProps) {
             </div>
           </section>
 
-          <section aria-labelledby="analytics-heading" className="space-y-3">
+          <section aria-labelledby="analytics-heading" className="space-y-4">
             <div>
               <h2
                 id="analytics-heading"
@@ -475,10 +475,10 @@ function MiniStat({ label, value }: { label: string; value: string }) {
 
 function OverviewSkeleton() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="h-16 w-full max-w-md sn-skeleton rounded-2xl" />
       <div className="h-24 w-full sn-skeleton rounded-2xl" />
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {Array.from({ length: 5 }).map((_, index) => (
           <div key={index} className="h-28 sn-skeleton rounded-2xl" />
         ))}
