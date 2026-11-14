@@ -228,12 +228,17 @@ alter table public.notifications
 -- no INSERT policy). Poll updates share one preference toggle; leaving the
 -- group stops new notifications without deleting history.
 -- ---------------------------------------------------------------------------
+-- The previous 5-argument version is dropped so re-running this file cannot
+-- leave two overloads behind.
+drop function if exists public.push_poll_notification(uuid, uuid, text, uuid, text);
+
 create or replace function public.push_poll_notification(
   p_user_id    uuid,
   p_actor_id   uuid,
   p_type       text,
   p_poll_id    uuid,
-  p_dedupe_key text
+  p_dedupe_key text,
+  p_allow_self boolean default false
 )
 returns void
 language plpgsql
@@ -246,7 +251,13 @@ declare
   v_group_name text;
   v_poll_title text;
 begin
-  if p_user_id is null or p_user_id = p_actor_id then
+  if p_user_id is null then
+    return;
+  end if;
+
+  -- The creator is skipped for their own action, except for deadline reminders
+  -- where the "actor" is only there to render an avatar.
+  if p_user_id = p_actor_id and not coalesce(p_allow_self, false) then
     return;
   end if;
 
@@ -289,7 +300,7 @@ begin
 end;
 $$;
 
-revoke all on function public.push_poll_notification(uuid, uuid, text, uuid, text)
+revoke all on function public.push_poll_notification(uuid, uuid, text, uuid, text, boolean)
   from public;
 
 -- New poll -> every current member except its creator.
@@ -337,6 +348,8 @@ as $$
 declare
   v_kind   text;
   v_member uuid;
+  v_actor  uuid;
+  v_manual boolean;
 begin
   if old.status = new.status or new.status = 'open' then
     return new;
@@ -352,6 +365,16 @@ begin
     return new;
   end if;
 
+  -- close_poll()/cancel_poll() mark the real actor in a transaction-local
+  -- setting so a co-owner's action is attributed to them, not the creator.
+  -- Lazy closes (deadline passed) leave it unset and credit the creator while
+  -- still notifying everyone.
+  v_manual := nullif(current_setting('splitnest.poll_actor', true), '') is not null;
+  v_actor := case
+    when v_manual then current_setting('splitnest.poll_actor')::uuid
+    else new.created_by
+  end;
+
   for v_member in
     select user_id
     from public.group_members
@@ -359,10 +382,11 @@ begin
   loop
     perform public.push_poll_notification(
       v_member,
-      new.created_by,
+      v_actor,
       v_kind,
       new.id,
-      'poll-status:' || new.id::text || ':' || new.status::text || ':' || v_member::text
+      'poll-status:' || new.id::text || ':' || new.status::text || ':' || v_member::text,
+      not v_manual
     );
   end loop;
 
@@ -760,6 +784,9 @@ begin
     return;
   end if;
 
+  -- Attribute the notification to the member who closed it.
+  perform set_config('splitnest.poll_actor', auth.uid()::text, true);
+
   update public.polls
   set status = 'closed', closed_at = now()
   where id = p_poll_id and status = 'open';
@@ -801,6 +828,9 @@ begin
   if v_status <> 'open' then
     raise exception 'only an open poll can be cancelled';
   end if;
+
+  -- Attribute the notification to the member who cancelled it.
+  perform set_config('splitnest.poll_actor', auth.uid()::text, true);
 
   update public.polls
   set status = 'cancelled', cancelled_at = now()
@@ -1025,7 +1055,8 @@ begin
           v_poll.created_by,
           'poll_deadline',
           v_poll.id,
-          'poll-deadline:' || v_poll.id::text || ':' || v_member::text
+          'poll-deadline:' || v_poll.id::text || ':' || v_member::text,
+          true
         );
       end loop;
     end if;
