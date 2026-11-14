@@ -18,6 +18,14 @@ const dateFormatter = new Intl.DateTimeFormat("en-IN", {
   year: "numeric",
 });
 
+const dateTimeFormatter = new Intl.DateTimeFormat("en-IN", {
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
+
 export function formatINR(amount: number): string {
   // Round to the nearest paisa first so a tiny floating-point residue cannot
   // turn a whole rupee into a two-decimal string. Whole rupees stay compact;
@@ -82,6 +90,15 @@ export function formatDate(iso: string): string {
     return iso;
   }
   return dateFormatter.format(date);
+}
+
+/** Date plus local time, used for "recorded at" metadata. */
+export function formatDateTime(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return iso;
+  }
+  return dateTimeFormatter.format(date);
 }
 
 export function getInitials(name: string): string {

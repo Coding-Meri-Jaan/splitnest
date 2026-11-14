@@ -87,9 +87,12 @@ export function ExpenseTable({
                     <CategoryIcon className="size-4" />
                   </span>
                   <div className="flex min-w-0 flex-col">
-                    <span className="max-w-52 truncate font-medium">
+                    <Link
+                      href={`/dashboard/groups/${expense.groupId}/expenses/${expense.id}`}
+                      className="max-w-52 truncate font-medium underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                    >
                       {expense.title}
-                    </span>
+                    </Link>
                     <span className="truncate text-xs text-muted-foreground">
                       {formatDate(expense.date)} · {category.label}
                       {splitLabel ? ` · ${splitLabel}` : ""}

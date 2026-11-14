@@ -7,7 +7,6 @@ import { normalizeRole } from "@/lib/roles";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database, MemberRole } from "@/types/database";
 import type {
-  ActivityItem,
   BalanceView,
   DashboardSummary,
   ExpenseView,
@@ -279,6 +278,8 @@ function buildExpenseViews(ledger: Ledger): ExpenseView[] {
       category: expense.category,
       notes: expense.notes,
       createdById: expense.created_by,
+      createdByName: people.get(expense.created_by)?.name ?? "Member",
+      createdAt: expense.created_at,
       splitMode: expense.split_mode,
       splits,
       splitUserIds: splits.map((split) => split.userId),
@@ -496,43 +497,6 @@ export async function getGroupDetail(
     suggestedTransfers,
     totalSpent: toRupees(totalSpent),
   };
-}
-
-export async function getActivity(): Promise<ActivityItem[]> {
-  const supabase = await createSupabaseServerClient();
-  const ledger = await loadLedger(supabase);
-  const people = memberMap(ledger);
-  const groupNames = new Map(ledger.groups.map((group) => [group.id, group.name]));
-
-  const expenses: ActivityItem[] = ledger.expenses.map((expense) => ({
-    id: `expense-${expense.id}`,
-    kind: "expense",
-    title: expense.title,
-    groupId: expense.group_id,
-    groupName: groupNames.get(expense.group_id) ?? "Group",
-    amount: toRupees(expense.amount_paise),
-    date: expense.spent_at,
-    actorName: people.get(expense.paid_by)?.name ?? "Member",
-    category: expense.category,
-  }));
-
-  const settlements: ActivityItem[] = ledger.settlements.map((settlement) => ({
-    id: `settlement-${settlement.id}`,
-    kind: "settlement",
-    title: `${people.get(settlement.from_user)?.name ?? "Someone"} paid ${
-      people.get(settlement.to_user)?.name ?? "someone"
-    }`,
-    groupId: settlement.group_id,
-    groupName: groupNames.get(settlement.group_id) ?? "Group",
-    amount: toRupees(settlement.amount_paise),
-    date: settlement.settled_at,
-    actorName: people.get(settlement.from_user)?.name ?? "Member",
-    category: null,
-  }));
-
-  return [...expenses, ...settlements]
-    .sort((a, b) => b.date.localeCompare(a.date))
-    .slice(0, 40);
 }
 
 export interface PersonSummary extends Person {

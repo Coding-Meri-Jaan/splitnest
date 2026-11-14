@@ -5,14 +5,8 @@ import { ConfirmSubmitButton } from "@/components/shared/confirm-submit-button";
 import { deleteSettlementAction } from "@/lib/data/actions";
 import { formatDate } from "@/lib/format";
 import { canEditRow, type GroupRole } from "@/lib/roles";
+import { SETTLEMENT_METHOD_LABELS } from "@/lib/settlements";
 import type { SettlementView } from "@/types";
-
-const METHOD_LABELS: Record<SettlementView["method"], string> = {
-  upi: "UPI",
-  cash: "Cash",
-  bank_transfer: "Bank transfer",
-  other: "Other",
-};
 
 interface SettlementListProps {
   settlements: SettlementView[];
@@ -54,7 +48,8 @@ export function SettlementList({
                 <span className="font-semibold">{settlement.toName}</span>
               </p>
               <p className="text-xs text-muted-foreground">
-                {formatDate(settlement.date)} · {METHOD_LABELS[settlement.method]}
+                {formatDate(settlement.date)} ·{" "}
+                {SETTLEMENT_METHOD_LABELS[settlement.method]}
                 {settlement.note ? ` · ${settlement.note}` : ""}
               </p>
             </div>

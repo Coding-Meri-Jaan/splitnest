@@ -68,6 +68,9 @@ export interface ExpenseView {
   category: CategoryId;
   notes: string | null;
   createdById: string;
+  createdByName: string;
+  /** When the row was recorded (not necessarily the expense date). */
+  createdAt: string;
   splitMode: ExpenseSplitMode;
   /** Everyone sharing this expense, with their exact share. */
   splits: ExpenseSplitView[];
@@ -114,16 +117,85 @@ export interface DashboardSummary {
   activeGroups: number;
 }
 
-export interface ActivityItem {
+export interface ActivityParticipant {
+  userId: string;
+  name: string;
+  /** This person's exact share in rupees. */
+  share: number;
+  /** Percentage (0–100) or share weight; null for equal/exact splits. */
+  inputValue: number | null;
+  isCurrentUser: boolean;
+}
+
+export interface ActivityExpenseItem {
   id: string;
-  kind: "expense" | "settlement";
+  kind: "expense";
   title: string;
   groupId: string;
   groupName: string;
+  groupEmoji: string;
+  amount: number;
+  /** The date the expense is attributed to (`spent_at`). */
+  date: string;
+  /** When the row was recorded (`created_at`). */
+  createdAt: string;
+  paidById: string;
+  paidByName: string;
+  createdById: string;
+  createdByName: string;
+  isUserPayer: boolean;
+  category: CategoryId;
+  notes: string | null;
+  splitMode: ExpenseSplitMode;
+  splitCount: number;
+  /** Your exact share, or null when you were not in this split. */
+  userShare: number | null;
+  participants: ActivityParticipant[];
+}
+
+export interface ActivitySettlementItem {
+  id: string;
+  kind: "settlement";
+  title: string;
+  groupId: string;
+  groupName: string;
+  groupEmoji: string;
   amount: number;
   date: string;
-  actorName: string;
-  category: CategoryId | null;
+  createdAt: string;
+  fromUserId: string;
+  fromName: string;
+  toUserId: string;
+  toName: string;
+  createdById: string;
+  createdByName: string;
+  method: SettlementView["method"];
+  note: string | null;
+  /** Money into or out of your pocket; "other" when it was between others. */
+  direction: "in" | "out" | "other";
+}
+
+export type ActivityItem = ActivityExpenseItem | ActivitySettlementItem;
+
+export interface ActivityCategorySummary {
+  category: CategoryId;
+  /** Total amount in rupees. */
+  amount: number;
+  count: number;
+  /** Fraction of total expenditure (0–1). */
+  fraction: number;
+}
+
+export interface ActivitySummary {
+  /** Expense totals only; settlements never inflate this. */
+  totalSpent: number;
+  expenseCount: number;
+  totalSettled: number;
+  settlementCount: number;
+  latestDate: string | null;
+  latestTitle: string | null;
+  latestKind: "expense" | "settlement" | null;
+  topCategories: ActivityCategorySummary[];
 }
 
 export interface GroupDetail {
