@@ -16,6 +16,7 @@ import {
 } from "@/lib/activity-filters";
 import { isMissingSchemaMessage, SchemaMissingError } from "@/lib/data/errors";
 import { getGroupDetail } from "@/lib/data/groups";
+import { summarizeReactions } from "@/lib/discussion";
 import { displayName } from "@/lib/display-name";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
@@ -271,6 +272,8 @@ export async function getActivityPage(
     splitCount: 0,
     userShare: null,
     participants: [],
+    commentCount: 0,
+    reactions: [],
   }));
 
   const settlementItems: ActivitySettlementItem[] = visibleSettlements.map(
@@ -332,17 +335,57 @@ export async function getActivityPage(
     .map((item) => item.id);
 
   if (pageExpenseIds.length > 0) {
-    const { data, error } = await supabase
-      .from("expense_splits")
-      .select("expense_id, user_id, share_paise, split_value")
-      .in("expense_id", pageExpenseIds);
-    if (error) fail("expense splits", error.message);
+    const [splitsResult, commentsResult, reactionsResult] = await Promise.all([
+      supabase
+        .from("expense_splits")
+        .select("expense_id, user_id, share_paise, split_value")
+        .in("expense_id", pageExpenseIds),
+      // Discussion is additive: a database that has not run migration 0006
+      // still renders the timeline, just without comment counts.
+      supabase
+        .from("expense_comments")
+        .select("expense_id")
+        .in("expense_id", pageExpenseIds),
+      supabase
+        .from("expense_reactions")
+        .select("expense_id, user_id, emoji")
+        .in("expense_id", pageExpenseIds)
+        .is("comment_id", null),
+    ]);
+
+    if (splitsResult.error) fail("expense splits", splitsResult.error.message);
 
     const splitsByExpense = new Map<string, SplitScanRow[]>();
-    for (const split of (data ?? []) as SplitScanRow[]) {
+    for (const split of (splitsResult.data ?? []) as SplitScanRow[]) {
       const bucket = splitsByExpense.get(split.expense_id);
       if (bucket) bucket.push(split);
       else splitsByExpense.set(split.expense_id, [split]);
+    }
+
+    const commentCounts = new Map<string, number>();
+    if (!commentsResult.error) {
+      for (const comment of commentsResult.data ?? []) {
+        commentCounts.set(
+          comment.expense_id,
+          (commentCounts.get(comment.expense_id) ?? 0) + 1,
+        );
+      }
+    }
+
+    const reactionsByExpense = new Map<
+      string,
+      { emoji: string; userId: string; userName: string }[]
+    >();
+    if (!reactionsResult.error) {
+      for (const reaction of reactionsResult.data ?? []) {
+        const bucket = reactionsByExpense.get(reaction.expense_id) ?? [];
+        bucket.push({
+          emoji: reaction.emoji,
+          userId: reaction.user_id,
+          userName: people.get(reaction.user_id) ?? "Former member",
+        });
+        reactionsByExpense.set(reaction.expense_id, bucket);
+      }
     }
 
     for (const item of paginated.items) {
@@ -366,6 +409,11 @@ export async function getActivityPage(
       item.userShare =
         participants.find((participant) => participant.isCurrentUser)?.share ??
         null;
+      item.commentCount = commentCounts.get(item.id) ?? 0;
+      item.reactions = summarizeReactions(
+        reactionsByExpense.get(item.id) ?? [],
+        userId,
+      );
     }
   }
 

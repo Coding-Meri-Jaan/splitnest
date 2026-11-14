@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { BadgeCheckIcon, MailIcon } from "lucide-react";
 
 import { ProfileForm } from "@/components/dashboard/profile-form";
+import { NotificationPreferencesForm } from "@/components/dashboard/notification-preferences-form";
 import { SecuritySettings } from "@/components/dashboard/security-settings";
 import { MemberAvatar } from "@/components/shared/member-avatar";
 import { PageHeader } from "@/components/shared/page-header";
@@ -10,6 +11,7 @@ import { ThemePreferenceControl } from "@/components/theme/theme-controls";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCurrentUser } from "@/lib/auth/user";
+import { getNotificationPreferences } from "@/lib/data/discussion";
 
 export const metadata: Metadata = {
   title: "Settings",
@@ -32,6 +34,7 @@ export default function SettingsPage() {
 
 async function SettingsContent() {
   const user = await getCurrentUser();
+  const notificationPreferences = await getNotificationPreferences(user.id);
 
   return (
     <div className="space-y-6">
@@ -88,6 +91,21 @@ async function SettingsContent() {
         </CardHeader>
         <CardContent>
           <ThemePreferenceControl />
+        </CardContent>
+      </Card>
+
+      <Card className="sn-rise sn-delay-2">
+        <CardHeader>
+          <CardTitle>Notifications</CardTitle>
+          <CardDescription>
+            Choose which expense discussions should reach you. You can always
+            see everything on the expense itself.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <NotificationPreferencesForm
+            preferences={notificationPreferences}
+          />
         </CardContent>
       </Card>
 

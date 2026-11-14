@@ -48,9 +48,13 @@ interface DashboardTopbarProps {
     fullName: string;
     email: string;
   };
+  unreadNotifications?: number;
 }
 
-export function DashboardTopbar({ user }: DashboardTopbarProps) {
+export function DashboardTopbar({
+  user,
+  unreadNotifications = 0,
+}: DashboardTopbarProps) {
   const [open, setOpen] = useState(false);
   const collapsed = useSidebarCollapsed();
   const logoutForm = useRef<HTMLFormElement>(null);
@@ -110,21 +114,28 @@ export function DashboardTopbar({ user }: DashboardTopbarProps) {
       <div className="ml-auto flex items-center gap-1.5">
         <ThemeToggle />
         <span className="relative hidden sm:inline">
-          <span
-            aria-hidden
-            className="absolute top-1.5 right-1.5 z-10 size-1.5 rounded-full bg-brand shadow-[0_0_8px_var(--brand)]"
-          />
-          <button
-            type="button"
+          {unreadNotifications > 0 ? (
+            <span
+              aria-hidden
+              className="absolute top-0.5 right-0.5 z-10 flex min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[0.6rem] leading-4 font-semibold text-brand-foreground shadow-[0_0_8px_var(--brand)]"
+            >
+              {unreadNotifications > 9 ? "9+" : unreadNotifications}
+            </span>
+          ) : null}
+          <Link
+            href="/dashboard/notifications"
             className={cn(
               buttonVariants({ variant: "ghost", size: "icon-sm" }),
-              "text-muted-foreground"
+              "text-muted-foreground",
             )}
-            aria-label="Notifications"
-            disabled
+            aria-label={
+              unreadNotifications > 0
+                ? `Notifications, ${unreadNotifications} unread`
+                : "Notifications"
+            }
           >
             <BellIcon />
-          </button>
+          </Link>
         </span>
 
         <DropdownMenu>

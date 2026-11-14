@@ -2,6 +2,7 @@ import {
   ArrowUpRightIcon,
   ChevronDownIcon,
   HandshakeIcon,
+  MessageCircleIcon,
   ReceiptTextIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -202,6 +203,41 @@ function ExpenseCard({ item }: { item: ActivityExpenseItem }) {
               </span>
             )}
           </div>
+
+          {item.reactions.length > 0 || item.commentCount > 0 ? (
+            <div className="relative z-10 mt-2.5 flex flex-wrap items-center gap-1.5">
+              {item.reactions.map((reaction) => (
+                <Link
+                  key={reaction.emoji}
+                  href={`${detailHref}#discussion`}
+                  aria-label={`${reaction.emoji} from ${reaction.names.join(
+                    ", ",
+                  )}${reaction.reactedByMe ? ", including you" : ""}`}
+                  title={reaction.names.join(", ")}
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[0.68rem] font-medium transition-colors",
+                    reaction.reactedByMe
+                      ? "border-brand/30 bg-brand/10 text-brand"
+                      : "border-border/60 bg-foreground/[0.035] text-muted-foreground hover:border-brand/25 hover:text-foreground",
+                  )}
+                >
+                  <span aria-hidden>{reaction.emoji}</span>
+                  <span className="tabular-nums">{reaction.count}</span>
+                </Link>
+              ))}
+
+              {item.commentCount > 0 ? (
+                <Link
+                  href={`${detailHref}#discussion`}
+                  className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-foreground/[0.035] px-2 py-0.5 text-[0.68rem] font-medium text-muted-foreground transition-colors hover:border-brand/25 hover:text-foreground"
+                >
+                  <MessageCircleIcon className="size-3" aria-hidden />
+                  {item.commentCount}{" "}
+                  {item.commentCount === 1 ? "comment" : "comments"}
+                </Link>
+              ) : null}
+            </div>
+          ) : null}
 
           {item.participants.length > 0 ? (
             <details className="group/split relative z-10 mt-2.5">

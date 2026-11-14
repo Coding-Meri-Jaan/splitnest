@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   ActivityIcon,
+  BellIcon,
   LayoutDashboardIcon,
   SettingsIcon,
   SparklesIcon,
@@ -19,6 +20,11 @@ const navItems = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboardIcon },
   { href: "/dashboard/groups", label: "Groups", icon: UsersRoundIcon },
   { href: "/dashboard/activity", label: "Activity", icon: ActivityIcon },
+  {
+    href: "/dashboard/notifications",
+    label: "Notifications",
+    icon: BellIcon,
+  },
   { href: "/dashboard/people", label: "People", icon: WalletIcon },
 ];
 

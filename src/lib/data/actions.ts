@@ -18,6 +18,7 @@ import {
   normalizeRole,
 } from "@/lib/roles";
 import { buildSplitShares, isSplitMode } from "@/lib/splits";
+import { isMissingSchemaMessage } from "@/lib/data/errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { ExpenseCategory, MemberRole } from "@/types/database";
 import type { ExpenseSplitMode } from "@/types";
@@ -770,6 +771,41 @@ export async function updateExpenseAction(
     };
   }
 
+  // Edit in place so the expense keeps its id and therefore its comments,
+  // replies, and reactions. update_expense() is added by migration 0006.
+  const { error: inPlaceError } = await supabase.rpc("update_expense", {
+    p_expense_id: expenseId,
+    p_group_id: input.groupId,
+    p_title: input.title,
+    p_amount_paise: input.amountPaise,
+    p_paid_by: input.paidBy,
+    p_category: input.category,
+    p_spent_at: input.spentAt,
+    p_notes: input.notes || null,
+    p_split_mode: input.splitMode,
+    p_splits: rpcSplits(built.splits),
+  });
+
+  if (!inPlaceError) {
+    revalidateGroup(input.groupId);
+    redirect(`/dashboard/groups/${input.groupId}?updated=1`);
+  }
+
+  if (!isMissingSchemaMessage(inPlaceError.message)) {
+    return {
+      error: inPlaceError.message.includes("not allowed")
+        ? "You no longer have permission to edit this expense."
+        : inPlaceError.message.includes("not a member") ||
+            inPlaceError.message.includes("split member")
+          ? "Everyone on this expense must belong to the group."
+          : "Could not update the expense. Please try again.",
+      message: null,
+    };
+  }
+
+  // Older databases (before migration 0006) have no update_expense(). Keep
+  // their existing create-then-delete behaviour working. This path resets the
+  // expense id, which is why the in-place RPC is preferred.
   // The split rows are writable only by the expense author, so an in-place
   // rewrite cannot be done atomically through PostgREST. Create the corrected
   // expense + splits with the existing atomic RPC, then remove the old row. If

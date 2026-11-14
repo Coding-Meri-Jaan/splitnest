@@ -14,6 +14,11 @@ const TABLES = [
   "expenses",
   "expense_splits",
   "settlements",
+  "expense_comments",
+  "expense_comment_mentions",
+  "expense_reactions",
+  "notification_preferences",
+  "notifications",
 ] as const;
 
 /**
@@ -43,6 +48,7 @@ export async function GET() {
     tables: {} as Record<string, string>,
     splitSchema: "skipped" as string,
     rolesSchema: "skipped" as string,
+    discussionSchema: "skipped" as string,
     notes: [] as string[],
     nextStep: "",
   };
@@ -141,6 +147,32 @@ export async function GET() {
     report.rolesSchema = "unreachable";
   }
 
+  // Migration 0006 adds the discussion tables and the in-place expense update
+  // RPC. Probe the two tables the feature cannot work without.
+  try {
+    const [commentsProbe, reactionsProbe, notificationsProbe] =
+      await Promise.all([
+        fetch(`${url}/rest/v1/expense_comments?select=id&limit=1`, {
+          headers: authHeaders,
+          cache: "no-store",
+        }),
+        fetch(`${url}/rest/v1/expense_reactions?select=id&limit=1`, {
+          headers: authHeaders,
+          cache: "no-store",
+        }),
+        fetch(`${url}/rest/v1/notifications?select=id&limit=1`, {
+          headers: authHeaders,
+          cache: "no-store",
+        }),
+      ]);
+    report.discussionSchema =
+      commentsProbe.ok && reactionsProbe.ok && notificationsProbe.ok
+        ? "ok"
+        : "missing";
+  } catch {
+    report.discussionSchema = "unreachable";
+  }
+
   const missing = Object.entries(report.tables)
     .filter(([, status]) => status === "missing")
     .map(([table]) => table);
@@ -179,7 +211,7 @@ export async function GET() {
   }
   if (missing.length > 0) {
     steps.push(
-      `Run supabase/migrations/0001_init.sql, 0002_expenses_and_invites.sql, 0003_profile_names.sql, 0004_custom_splits.sql, then 0005_group_roles.sql in the Supabase SQL editor (missing: ${missing.join(", ")}).`,
+      `Run supabase/migrations/0001_init.sql, 0002_expenses_and_invites.sql, 0003_profile_names.sql, 0004_custom_splits.sql, 0005_group_roles.sql, then 0006_expense_discussions.sql in the Supabase SQL editor (missing: ${missing.join(", ")}).`,
     );
   }
   if (report.auth === "ok" && report.splitSchema === "missing") {
@@ -196,6 +228,15 @@ export async function GET() {
   } else if (report.rolesSchema.startsWith("http-")) {
     steps.push(
       `Could not check the group roles schema (${report.rolesSchema}). Make sure the REST endpoint is reachable.`,
+    );
+  }
+  if (report.auth === "ok" && report.discussionSchema === "missing") {
+    steps.push(
+      "Expense discussions are unavailable: run supabase/migrations/0006_expense_discussions.sql in the Supabase SQL editor. Expenses, splits, and settlements keep working without it.",
+    );
+  } else if (report.discussionSchema === "unreachable") {
+    steps.push(
+      "Could not check the expense discussion schema. Is the REST endpoint reachable?",
     );
   }
 

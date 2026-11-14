@@ -182,6 +182,135 @@ export type Database = {
         };
         Relationships: [];
       };
+      expense_comments: {
+        Row: {
+          id: string;
+          expense_id: string;
+          group_id: string;
+          author_id: string;
+          parent_id: string | null;
+          body: string;
+          edited_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          expense_id: string;
+          group_id: string;
+          author_id: string;
+          parent_id?: string | null;
+          body: string;
+          edited_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          body?: string;
+          edited_at?: string | null;
+        };
+        Relationships: [];
+      };
+      expense_comment_mentions: {
+        Row: {
+          comment_id: string;
+          mentioned_user_id: string;
+          created_at: string;
+        };
+        Insert: {
+          comment_id: string;
+          mentioned_user_id: string;
+          created_at?: string;
+        };
+        Update: {
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      expense_reactions: {
+        Row: {
+          id: string;
+          expense_id: string;
+          comment_id: string | null;
+          group_id: string;
+          user_id: string;
+          emoji: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          expense_id: string;
+          comment_id?: string | null;
+          group_id: string;
+          user_id: string;
+          emoji: string;
+          created_at?: string;
+        };
+        Update: {
+          emoji?: string;
+        };
+        Relationships: [];
+      };
+      notification_preferences: {
+        Row: {
+          user_id: string;
+          expense_comments: boolean;
+          comment_replies: boolean;
+          mentions: boolean;
+          reactions: boolean;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          expense_comments?: boolean;
+          comment_replies?: boolean;
+          mentions?: boolean;
+          reactions?: boolean;
+          updated_at?: string;
+        };
+        Update: {
+          expense_comments?: boolean;
+          comment_replies?: boolean;
+          mentions?: boolean;
+          reactions?: boolean;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      notifications: {
+        Row: {
+          id: string;
+          user_id: string;
+          actor_id: string | null;
+          type: string;
+          group_id: string | null;
+          group_name: string | null;
+          expense_id: string | null;
+          expense_title: string | null;
+          comment_id: string | null;
+          reaction_emoji: string | null;
+          dedupe_key: string;
+          read_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          actor_id?: string | null;
+          type: string;
+          group_id?: string | null;
+          group_name?: string | null;
+          expense_id?: string | null;
+          expense_title?: string | null;
+          comment_id?: string | null;
+          reaction_emoji?: string | null;
+          dedupe_key: string;
+          read_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          read_at?: string | null;
+        };
+        Relationships: [];
+      };
     };
     Views: { [_ in never]: never };
     Functions: {
@@ -194,6 +323,21 @@ export type Database = {
       };
       create_expense: {
         Args: {
+          p_group_id: string;
+          p_title: string;
+          p_amount_paise: number;
+          p_paid_by: string;
+          p_category: ExpenseCategory;
+          p_spent_at: string;
+          p_notes: string | null;
+          p_split_mode: ExpenseSplitMode;
+          p_splits: Json;
+        };
+        Returns: string;
+      };
+      update_expense: {
+        Args: {
+          p_expense_id: string;
           p_group_id: string;
           p_title: string;
           p_amount_paise: number;

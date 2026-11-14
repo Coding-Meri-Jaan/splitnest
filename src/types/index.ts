@@ -19,6 +19,65 @@ export function isCategoryId(value: string): value is CategoryId {
 
 export type ExpenseSplitMode = "equal" | "amount" | "percentage" | "shares";
 
+export type ReactionEmoji = "👍" | "❤️" | "😂" | "👀" | "🙌" | "😮";
+
+export interface ReactionSummary {
+  emoji: ReactionEmoji;
+  count: number;
+  reactedByMe: boolean;
+  /** Names of members who used this reaction, sorted alphabetically. */
+  names: string[];
+}
+
+export interface DiscussionMember {
+  id: string;
+  name: string;
+}
+
+export interface CommentMentionView {
+  id: string;
+  name: string;
+}
+
+export interface CommentView {
+  id: string;
+  expenseId: string;
+  parentId: string | null;
+  authorId: string;
+  authorName: string;
+  body: string;
+  createdAt: string;
+  editedAt: string | null;
+  isMine: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+  mentions: CommentMentionView[];
+  reactions: ReactionSummary[];
+}
+
+export type NotificationKind =
+  | "expense_comment"
+  | "comment_reply"
+  | "mention"
+  | "expense_reaction";
+
+export interface NotificationView {
+  id: string;
+  kind: NotificationKind;
+  actorId: string | null;
+  actorName: string;
+  groupId: string | null;
+  groupName: string | null;
+  expenseId: string | null;
+  expenseTitle: string | null;
+  commentId: string | null;
+  reactionEmoji: string | null;
+  read: boolean;
+  createdAt: string;
+  /** Null when the expense is no longer visible to this member. */
+  href: string | null;
+}
+
 /**
  * UI-facing view models.
  *
@@ -151,6 +210,10 @@ export interface ActivityExpenseItem {
   /** Your exact share, or null when you were not in this split. */
   userShare: number | null;
   participants: ActivityParticipant[];
+  /** Total comments and replies on this expense. */
+  commentCount: number;
+  /** Reactions left on the expense itself. */
+  reactions: ReactionSummary[];
 }
 
 export interface ActivitySettlementItem {

@@ -20,3 +20,8 @@ export function isMissingSchemaMessage(message: string): boolean {
     message,
   );
 }
+
+export const DISCUSSION_MIGRATION = "supabase/migrations/0006_expense_discussions.sql";
+
+export const DISCUSSION_SETUP_MESSAGE =
+  `Expense discussions need a database update. Run ${DISCUSSION_MIGRATION} in the Supabase SQL editor.`;

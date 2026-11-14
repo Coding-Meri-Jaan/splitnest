@@ -13,6 +13,7 @@ import {
   WalletIcon,
 } from "lucide-react";
 
+import { ExpenseDiscussion } from "@/components/dashboard/discussion/expense-discussion";
 import { MemberAvatar } from "@/components/shared/member-avatar";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
@@ -28,7 +29,7 @@ import { getExpenseDetail } from "@/lib/data/activity";
 import { categoryTints } from "@/lib/category-tints";
 import { getCategoryMeta } from "@/lib/categories";
 import { formatDate, formatDateTime, formatINR } from "@/lib/format";
-import { canEditRow } from "@/lib/roles";
+import { canEditRow, canManageGroup } from "@/lib/roles";
 import { SETTLEMENT_METHOD_LABELS } from "@/lib/settlements";
 import { SPLIT_MODE_DESCRIPTIONS, SPLIT_MODE_LABELS } from "@/lib/splits";
 import { cn } from "@/lib/utils";
@@ -205,11 +206,21 @@ async function ExpenseDetailContent({ params }: ExpenseDetailPageProps) {
 
           <p className="text-[0.68rem] text-muted-foreground">
             Added by {expense.createdByName} on{" "}
-            {formatDateTime(expense.createdAt)}. This ledger does not track
-            receipt images or comments.
+            {formatDateTime(expense.createdAt)}.
           </p>
         </CardContent>
       </Card>
+
+      <ExpenseDiscussion
+        expenseId={expense.id}
+        groupId={group.id}
+        currentUserId={user.id}
+        members={group.members.map((member) => ({
+          id: member.id,
+          name: member.name,
+        }))}
+        canModerate={canManageGroup(group.role)}
+      />
 
       <Card>
         <CardHeader>
