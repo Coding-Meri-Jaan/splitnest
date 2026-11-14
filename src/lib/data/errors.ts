@@ -25,3 +25,8 @@ export const DISCUSSION_MIGRATION = "supabase/migrations/0006_expense_discussion
 
 export const DISCUSSION_SETUP_MESSAGE =
   `Expense discussions need a database update. Run ${DISCUSSION_MIGRATION} in the Supabase SQL editor.`;
+
+export const POLLS_MIGRATION = "supabase/migrations/0007_group_polls.sql";
+
+export const POLLS_SETUP_MESSAGE =
+  `Group polls need a database update. Run ${POLLS_MIGRATION} in the Supabase SQL editor.`;

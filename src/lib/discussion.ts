@@ -183,7 +183,11 @@ export function isNotificationKind(value: string): value is NotificationKind {
     value === "expense_comment" ||
     value === "comment_reply" ||
     value === "mention" ||
-    value === "expense_reaction"
+    value === "expense_reaction" ||
+    value === "poll_created" ||
+    value === "poll_deadline" ||
+    value === "poll_closed" ||
+    value === "poll_cancelled"
   );
 }
 
@@ -192,10 +196,20 @@ export function notificationText(
   actorName: string,
   expenseTitle: string | null,
   reactionEmoji: string | null,
+  pollTitle?: string | null,
 ): string {
   const title = expenseTitle?.trim() || "an expense";
+  const poll = pollTitle?.trim() || "a group poll";
 
   switch (kind) {
+    case "poll_created":
+      return `${actorName} started a poll “${poll}”`;
+    case "poll_deadline":
+      return `Voting on “${poll}” closes within 24 hours`;
+    case "poll_closed":
+      return `“${poll}” has closed — results are ready`;
+    case "poll_cancelled":
+      return `${actorName} cancelled the poll “${poll}”`;
     case "comment_reply":
       return `${actorName} replied to your comment on “${title}”`;
     case "mention":

@@ -15,7 +15,7 @@ import {
 import { canManageGroup, normalizeRole } from "@/lib/roles";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { FormState } from "@/lib/form-state";
-import type { MemberRole } from "@/types/database";
+import type { Database, MemberRole } from "@/types/database";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -475,16 +475,32 @@ export async function updateNotificationPreferencesAction(
   const userId = await requireUserId();
   const supabase = await createSupabaseServerClient();
 
-  const { error } = await supabase.from("notification_preferences").upsert(
-    {
-      user_id: userId,
-      expense_comments: formData.get("expenseComments") === "on",
-      comment_replies: formData.get("commentReplies") === "on",
-      mentions: formData.get("mentions") === "on",
-      reactions: formData.get("reactions") === "on",
-    },
-    { onConflict: "user_id" },
-  );
+  const includesPolls = formData.get("pollUpdatesPresent") === "1";
+  const base = {
+    user_id: userId,
+    expense_comments: formData.get("expenseComments") === "on",
+    comment_replies: formData.get("commentReplies") === "on",
+    mentions: formData.get("mentions") === "on",
+    reactions: formData.get("reactions") === "on",
+  };
+
+  type PreferencePayload =
+    Database["public"]["Tables"]["notification_preferences"]["Insert"];
+  const payload: PreferencePayload = includesPolls
+    ? { ...base, poll_updates: formData.get("pollUpdates") === "on" }
+    : base;
+
+  let { error } = await supabase
+    .from("notification_preferences")
+    .upsert(payload, { onConflict: "user_id" });
+
+  let pollWarning = false;
+  if (error && includesPolls && isMissingSchemaMessage(error.message)) {
+    pollWarning = true;
+    ({ error } = await supabase
+      .from("notification_preferences")
+      .upsert(base, { onConflict: "user_id" }));
+  }
 
   if (error) {
     if (isMissingSchemaMessage(error.message)) {
@@ -499,5 +515,10 @@ export async function updateNotificationPreferencesAction(
   revalidatePath("/dashboard/settings");
   revalidatePath("/dashboard/notifications");
   revalidatePath("/dashboard", "layout");
-  return { error: null, message: "Notification preferences saved." };
+  return {
+    error: null,
+    message: pollWarning
+      ? "Preferences saved. Poll updates will appear after the database update."
+      : "Notification preferences saved.",
+  };
 }

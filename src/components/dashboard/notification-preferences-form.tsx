@@ -33,6 +33,11 @@ const OPTIONS = [
     label: "Reactions to my expenses",
     description: "When someone reacts to an expense you added.",
   },
+  {
+    name: "pollUpdates",
+    label: "Group polls",
+    description: "New polls, closing reminders, and final results.",
+  },
 ] as const;
 
 export function NotificationPreferencesForm({
@@ -48,14 +53,21 @@ export function NotificationPreferencesForm({
     commentReplies: preferences.commentReplies,
     mentions: preferences.mentions,
     reactions: preferences.reactions,
+    pollUpdates: preferences.pollUpdates,
   };
+  const options = preferences.pollsAvailable
+    ? OPTIONS
+    : OPTIONS.filter((option) => option.name !== "pollUpdates");
 
   return (
     <form action={formAction} className="space-y-4">
       <FormMessage error={state.error} message={state.message} />
+      {preferences.pollsAvailable ? (
+        <input type="hidden" name="pollUpdatesPresent" value="1" />
+      ) : null}
 
       <ul className="space-y-2">
-        {OPTIONS.map((option) => (
+        {options.map((option) => (
           <li key={option.name}>
             <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border/55 bg-background/40 px-3.5 py-3 transition-colors hover:border-brand/25">
               <input

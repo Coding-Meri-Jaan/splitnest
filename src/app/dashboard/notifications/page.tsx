@@ -16,7 +16,7 @@ export default function NotificationsPage() {
       <PageHeader
         eyebrow="Activity"
         title="Notifications"
-        description="Replies, mentions, and reactions tied to your expenses."
+        description="Replies, mentions, reactions, and poll updates tied to your groups."
       />
       <Suspense fallback={<div className="h-72 sn-skeleton rounded-2xl" />}>
         <NotificationsContent />

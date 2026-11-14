@@ -5,9 +5,13 @@ import { useRouter } from "next/navigation";
 import {
   AtSignIcon,
   BellOffIcon,
+  CheckCircle2Icon,
+  ClockIcon,
   MessageCircleIcon,
+  PieChartIcon,
   ReplyIcon,
   SmilePlusIcon,
+  XCircleIcon,
 } from "lucide-react";
 
 import { SubmitButton } from "@/components/auth/submit-button";
@@ -27,6 +31,10 @@ const KIND_ICONS: Record<NotificationKind, typeof MessageCircleIcon> = {
   comment_reply: ReplyIcon,
   mention: AtSignIcon,
   expense_reaction: SmilePlusIcon,
+  poll_created: PieChartIcon,
+  poll_deadline: ClockIcon,
+  poll_closed: CheckCircle2Icon,
+  poll_cancelled: XCircleIcon,
 };
 
 interface NotificationsListProps {
@@ -62,7 +70,7 @@ export function NotificationsList({
         <p className="mt-3 text-sm font-medium">Notifications are not set up yet</p>
         <p className="mx-auto mt-1 max-w-sm text-sm leading-relaxed text-muted-foreground">
           Run the latest database migration to start receiving comment,
-          mention, and reaction updates.
+          mention, reaction, and poll updates.
         </p>
       </div>
     );
@@ -74,7 +82,7 @@ export function NotificationsList({
         <BellOffIcon className="mx-auto size-8 text-muted-foreground" aria-hidden />
         <p className="mt-3 text-sm font-medium">You&apos;re all caught up</p>
         <p className="mx-auto mt-1 max-w-sm text-sm leading-relaxed text-muted-foreground">
-          Mentions, replies, and reactions on your expenses will show up here.
+          Mentions, replies, reactions, and poll updates will show up here.
         </p>
       </div>
     );
@@ -109,6 +117,7 @@ export function NotificationsList({
             item.actorName,
             item.expenseTitle,
             item.reactionEmoji,
+            item.pollTitle,
           );
 
           return (

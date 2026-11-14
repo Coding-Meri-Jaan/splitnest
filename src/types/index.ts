@@ -59,7 +59,11 @@ export type NotificationKind =
   | "expense_comment"
   | "comment_reply"
   | "mention"
-  | "expense_reaction";
+  | "expense_reaction"
+  | "poll_created"
+  | "poll_deadline"
+  | "poll_closed"
+  | "poll_cancelled";
 
 export interface NotificationView {
   id: string;
@@ -72,10 +76,80 @@ export interface NotificationView {
   expenseTitle: string | null;
   commentId: string | null;
   reactionEmoji: string | null;
+  pollId: string | null;
+  pollTitle: string | null;
   read: boolean;
   createdAt: string;
-  /** Null when the expense is no longer visible to this member. */
+  /** Null when the expense or poll is no longer visible to this member. */
   href: string | null;
+}
+
+export type PollStatus = "open" | "closed" | "cancelled";
+export type PollSelection = "single" | "multiple";
+export type PollResultsVisibility = "always" | "after_vote" | "after_close";
+
+export interface PollVoterView {
+  id: string;
+  name: string;
+}
+
+export interface PollOptionView {
+  id: string;
+  label: string;
+  imageUrl: string | null;
+  position: number;
+  count: number;
+  /** Whole-number percentage of the total votes, rounded for display. */
+  percent: number;
+  isMine: boolean;
+  isWinner: boolean;
+}
+
+export interface PollView {
+  id: string;
+  groupId: string;
+  groupName: string;
+  title: string;
+  description: string | null;
+  status: PollStatus;
+  selection: PollSelection;
+  resultsVisibility: PollResultsVisibility;
+  anonymous: boolean;
+  closesAt: string;
+  closedAt: string | null;
+  cancelledAt: string | null;
+  createdAt: string;
+  createdById: string;
+  createdByName: string;
+  /** True when the signed-in member created the poll. */
+  isMine: boolean;
+  /** Creator or a group admin. */
+  canManage: boolean;
+  /** Open, untouched, and managed by this member. */
+  canEdit: boolean;
+  options: PollOptionView[];
+  totalVotes: number;
+  voterCount: number;
+  memberCount: number;
+  turnoutPercent: number;
+  myOptionIds: string[];
+  hasVoted: boolean;
+  canSeeResults: boolean;
+  voters: PollVoterView[];
+  winnerIds: string[];
+  isTie: boolean;
+  /** The deadline is in the future but inside the final 24 hours. */
+  isClosingSoon: boolean;
+}
+
+export interface GroupPollSummary {
+  /** False when migration 0007 has not been applied yet. */
+  available: boolean;
+  activeCount: number;
+  completedCount: number;
+  totalCount: number;
+  nextPoll: { id: string; title: string; closesAt: string } | null;
+  canCreate: boolean;
 }
 
 /**

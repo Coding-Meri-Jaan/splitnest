@@ -4,6 +4,7 @@ import {
   REACTION_EMOJIS,
   buildMentionPattern,
   findMentionedMembers,
+  isNotificationKind,
   isReactionEmoji,
   mentionSegments,
   notificationText,
@@ -123,5 +124,39 @@ describe("notificationText", () => {
     expect(notificationText("expense_reaction", "Ana", "Dinner", "❤️")).toBe(
       "Ana reacted ❤️ “Dinner”",
     );
+  });
+
+  it("describes poll events without needing an expense title", () => {
+    expect(
+      notificationText("poll_created", "Ana", null, null, "Where to eat?"),
+    ).toBe("Ana started a poll “Where to eat?”");
+    expect(
+      notificationText("poll_deadline", "Ana", null, null, "Where to eat?"),
+    ).toBe("Voting on “Where to eat?” closes within 24 hours");
+    expect(
+      notificationText("poll_closed", "Ana", null, null, "Where to eat?"),
+    ).toBe("“Where to eat?” has closed — results are ready");
+    expect(
+      notificationText("poll_cancelled", "Ana", null, null, "Where to eat?"),
+    ).toBe("Ana cancelled the poll “Where to eat?”");
+  });
+});
+
+describe("isNotificationKind", () => {
+  it("accepts discussion and poll kinds", () => {
+    for (const kind of [
+      "expense_comment",
+      "comment_reply",
+      "mention",
+      "expense_reaction",
+      "poll_created",
+      "poll_deadline",
+      "poll_closed",
+      "poll_cancelled",
+    ]) {
+      expect(isNotificationKind(kind)).toBe(true);
+    }
+    expect(isNotificationKind("poll_winner")).toBe(false);
+    expect(isNotificationKind("")).toBe(false);
   });
 });

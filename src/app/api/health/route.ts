@@ -19,6 +19,9 @@ const TABLES = [
   "expense_reactions",
   "notification_preferences",
   "notifications",
+  "polls",
+  "poll_options",
+  "poll_votes",
 ] as const;
 
 /**
@@ -49,6 +52,7 @@ export async function GET() {
     splitSchema: "skipped" as string,
     rolesSchema: "skipped" as string,
     discussionSchema: "skipped" as string,
+    pollsSchema: "skipped" as string,
     notes: [] as string[],
     nextStep: "",
   };
@@ -173,6 +177,45 @@ export async function GET() {
     report.discussionSchema = "unreachable";
   }
 
+  // Migration 0007 adds group polls, their options and votes, plus the poll
+  // columns on notifications and preferences. Probe each piece so a partial
+  // run is visible instead of silently hiding the feature.
+  try {
+    const [pollsProbe, optionsProbe, votesProbe, notificationProbe, preferenceProbe] =
+      await Promise.all([
+        fetch(`${url}/rest/v1/polls?select=id&limit=1`, {
+          headers: authHeaders,
+          cache: "no-store",
+        }),
+        fetch(`${url}/rest/v1/poll_options?select=id&limit=1`, {
+          headers: authHeaders,
+          cache: "no-store",
+        }),
+        fetch(`${url}/rest/v1/poll_votes?select=id&limit=1`, {
+          headers: authHeaders,
+          cache: "no-store",
+        }),
+        fetch(`${url}/rest/v1/notifications?select=poll_id&limit=1`, {
+          headers: authHeaders,
+          cache: "no-store",
+        }),
+        fetch(`${url}/rest/v1/notification_preferences?select=poll_updates&limit=1`, {
+          headers: authHeaders,
+          cache: "no-store",
+        }),
+      ]);
+    report.pollsSchema =
+      pollsProbe.ok &&
+      optionsProbe.ok &&
+      votesProbe.ok &&
+      notificationProbe.ok &&
+      preferenceProbe.ok
+        ? "ok"
+        : "missing";
+  } catch {
+    report.pollsSchema = "unreachable";
+  }
+
   const missing = Object.entries(report.tables)
     .filter(([, status]) => status === "missing")
     .map(([table]) => table);
@@ -211,7 +254,7 @@ export async function GET() {
   }
   if (missing.length > 0) {
     steps.push(
-      `Run supabase/migrations/0001_init.sql, 0002_expenses_and_invites.sql, 0003_profile_names.sql, 0004_custom_splits.sql, 0005_group_roles.sql, then 0006_expense_discussions.sql in the Supabase SQL editor (missing: ${missing.join(", ")}).`,
+      `Run supabase/migrations/0001_init.sql, 0002_expenses_and_invites.sql, 0003_profile_names.sql, 0004_custom_splits.sql, 0005_group_roles.sql, 0006_expense_discussions.sql, then 0007_group_polls.sql in the Supabase SQL editor (missing: ${missing.join(", ")}).`,
     );
   }
   if (report.auth === "ok" && report.splitSchema === "missing") {
@@ -237,6 +280,15 @@ export async function GET() {
   } else if (report.discussionSchema === "unreachable") {
     steps.push(
       "Could not check the expense discussion schema. Is the REST endpoint reachable?",
+    );
+  }
+  if (report.auth === "ok" && report.pollsSchema === "missing") {
+    steps.push(
+      "Group polls are unavailable: run supabase/migrations/0007_group_polls.sql in the Supabase SQL editor. Expenses, discussions, splits, and settlements keep working without it.",
+    );
+  } else if (report.pollsSchema === "unreachable") {
+    steps.push(
+      "Could not check the group poll schema. Is the REST endpoint reachable?",
     );
   }
 

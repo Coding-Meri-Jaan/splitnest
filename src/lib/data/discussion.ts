@@ -221,14 +221,40 @@ export async function getNotifications(
   userId: string,
 ): Promise<NotificationsData> {
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase
+  const selectColumns =
+    "id, user_id, actor_id, type, group_id, group_name, expense_id, expense_title, comment_id, reaction_emoji, poll_id, poll_title, read_at, created_at";
+  const legacyColumns =
+    "id, user_id, actor_id, type, group_id, group_name, expense_id, expense_title, comment_id, reaction_emoji, read_at, created_at";
+
+  const primary = await supabase
     .from("notifications")
-    .select(
-      "id, user_id, actor_id, type, group_id, group_name, expense_id, expense_title, comment_id, reaction_emoji, read_at, created_at",
-    )
+    .select(selectColumns)
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(60);
+  let data = (primary.data ?? null) as NotificationRow[] | null;
+  let error = primary.error;
+  let pollsSupported = true;
+
+  // Migration 0007 adds poll_id/poll_title. Without it, keep the existing
+  // discussion notifications working instead of blanking the whole page.
+  if (error && isMissingSchemaMessage(error.message)) {
+    pollsSupported = false;
+    const legacy = await supabase
+      .from("notifications")
+      .select(legacyColumns)
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(60);
+
+    data = legacy.error
+      ? null
+      : ((legacy.data ?? []) as Omit<
+          NotificationRow,
+          "poll_id" | "poll_title"
+        >[]).map((row) => ({ ...row, poll_id: null, poll_title: null }));
+    error = legacy.error;
+  }
 
   if (error) {
     if (isMissingSchemaMessage(error.message)) {
@@ -237,15 +263,18 @@ export async function getNotifications(
     throw new Error(`Could not load notifications: ${error.message}`);
   }
 
-  const rows = (data ?? []) as NotificationRow[];
+  const rows = data ?? [];
   const actorIds = [
     ...new Set(rows.map((row) => row.actor_id).filter(Boolean)),
   ] as string[];
   const expenseIds = [
     ...new Set(rows.map((row) => row.expense_id).filter(Boolean)),
   ] as string[];
+  const pollIds = pollsSupported
+    ? ([...new Set(rows.map((row) => row.poll_id).filter(Boolean))] as string[])
+    : [];
 
-  const [actorsResult, expensesResult] = await Promise.all([
+  const [actorsResult, expensesResult, pollsResult] = await Promise.all([
     actorIds.length > 0
       ? supabase
           .from("profiles")
@@ -254,6 +283,9 @@ export async function getNotifications(
       : Promise.resolve({ data: [], error: null }),
     expenseIds.length > 0
       ? supabase.from("expenses").select("id").in("id", expenseIds)
+      : Promise.resolve({ data: [], error: null }),
+    pollIds.length > 0
+      ? supabase.from("polls").select("id").in("id", pollIds)
       : Promise.resolve({ data: [], error: null }),
   ]);
 
@@ -266,6 +298,9 @@ export async function getNotifications(
   const visibleExpenses = new Set(
     (expensesResult.data ?? []).map((expense) => expense.id),
   );
+  const visiblePolls = new Set(
+    pollsSupported ? (pollsResult.data ?? []).map((poll) => poll.id) : [],
+  );
 
   return {
     available: true,
@@ -273,8 +308,14 @@ export async function getNotifications(
       const kind = isNotificationKind(row.type)
         ? row.type
         : "expense_comment";
-      const href =
-        row.group_id && row.expense_id && visibleExpenses.has(row.expense_id)
+      const pollId = row.poll_id ?? null;
+      const pollTitle = row.poll_title ?? null;
+      const isPoll = kind.startsWith("poll_");
+      const href = isPoll
+        ? row.group_id && pollId && visiblePolls.has(pollId)
+          ? `/dashboard/groups/${row.group_id}/polls/${pollId}`
+          : null
+        : row.group_id && row.expense_id && visibleExpenses.has(row.expense_id)
           ? `/dashboard/groups/${row.group_id}/expenses/${row.expense_id}`
           : null;
 
@@ -289,6 +330,8 @@ export async function getNotifications(
         expenseTitle: row.expense_title,
         commentId: row.comment_id,
         reactionEmoji: row.reaction_emoji,
+        pollId,
+        pollTitle,
         read: row.read_at !== null,
         createdAt: row.created_at,
         href,
@@ -304,6 +347,9 @@ export interface NotificationPreferenceView {
   commentReplies: boolean;
   mentions: boolean;
   reactions: boolean;
+  pollUpdates: boolean;
+  /** False when migration 0007 has not been applied yet. */
+  pollsAvailable: boolean;
 }
 
 const DEFAULT_PREFERENCES = {
@@ -311,6 +357,7 @@ const DEFAULT_PREFERENCES = {
   commentReplies: true,
   mentions: true,
   reactions: true,
+  pollUpdates: true,
 };
 
 export async function getNotificationPreferences(
@@ -320,27 +367,58 @@ export async function getNotificationPreferences(
   const { data, error } = await supabase
     .from("notification_preferences")
     .select(
-      "expense_comments, comment_replies, mentions, reactions",
+      "expense_comments, comment_replies, mentions, reactions, poll_updates",
     )
     .eq("user_id", userId)
     .maybeSingle();
 
   if (error) {
+    if (!isMissingSchemaMessage(error.message)) {
+      return {
+        available: false,
+        pollsAvailable: false,
+        error: "Could not load your notification preferences.",
+        ...DEFAULT_PREFERENCES,
+      };
+    }
+
+    // Poll updates arrived in 0007. Keep the existing four toggles usable
+    // while the migration is pending.
+    const legacy = await supabase
+      .from("notification_preferences")
+      .select("expense_comments, comment_replies, mentions, reactions")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (legacy.error) {
+      return {
+        available: false,
+        pollsAvailable: false,
+        error: null,
+        ...DEFAULT_PREFERENCES,
+      };
+    }
+
     return {
-      available: false,
-      error: isMissingSchemaMessage(error.message)
-        ? null
-        : "Could not load your notification preferences.",
-      ...DEFAULT_PREFERENCES,
+      available: true,
+      pollsAvailable: false,
+      error: null,
+      expenseComments: legacy.data?.expense_comments ?? true,
+      commentReplies: legacy.data?.comment_replies ?? true,
+      mentions: legacy.data?.mentions ?? true,
+      reactions: legacy.data?.reactions ?? true,
+      pollUpdates: true,
     };
   }
 
   return {
     available: true,
+    pollsAvailable: true,
     error: null,
     expenseComments: data?.expense_comments ?? true,
     commentReplies: data?.comment_replies ?? true,
     mentions: data?.mentions ?? true,
     reactions: data?.reactions ?? true,
+    pollUpdates: data?.poll_updates ?? true,
   };
 }

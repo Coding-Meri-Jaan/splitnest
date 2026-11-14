@@ -6,6 +6,7 @@ import {
   ArrowLeftIcon,
   ArrowRightIcon,
   HandshakeIcon,
+  PieChartIcon,
   PlusIcon,
   ReceiptTextIcon,
   ScaleIcon,
@@ -33,7 +34,9 @@ import {
 } from "@/components/ui/card";
 import { getCurrentUser } from "@/lib/auth/user";
 import { getGroupDetail } from "@/lib/data/groups";
+import { getGroupPollSummary } from "@/lib/data/polls";
 import { formatINR } from "@/lib/format";
+import { pollTiming } from "@/lib/polls";
 import { canEditLedger, canManageGroup } from "@/lib/roles";
 import { buildUpiUri } from "@/lib/upi";
 import { cn } from "@/lib/utils";
@@ -71,6 +74,7 @@ async function GroupContent({ params, searchParams }: GroupPageProps) {
   }
 
   const { group, expenses, settlements, balances, suggestedTransfers, totalSpent } = detail;
+  const pollSummary = await getGroupPollSummary(group.id, group.role);
   const canEdit = canEditLedger(group.role);
   const canManage = canManageGroup(group.role);
   const confirmation =
@@ -299,6 +303,78 @@ async function GroupContent({ params, searchParams }: GroupPageProps) {
               <BalanceList balances={balances} />
             </CardContent>
           </Card>
+
+          {pollSummary.available ? (
+            <Card className="sn-rise sn-delay-3">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <PieChartIcon className="size-4 text-brand" aria-hidden />
+                  Polls
+                </CardTitle>
+                <CardDescription>
+                  Decide together without a long chat thread.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm">
+                  <span className="font-semibold">
+                    {pollSummary.activeCount}
+                  </span>{" "}
+                  open ·{" "}
+                  <span className="font-semibold">
+                    {pollSummary.completedCount}
+                  </span>{" "}
+                  completed
+                </p>
+
+                {pollSummary.nextPoll ? (
+                  <Link
+                    href={`/dashboard/groups/${group.id}/polls/${pollSummary.nextPoll.id}`}
+                    className="block rounded-xl border border-brand/20 bg-brand/[0.04] px-3 py-2.5 transition-colors hover:border-brand/35 hover:bg-brand/[0.07]"
+                  >
+                    <p className="truncate text-sm font-medium">
+                      {pollSummary.nextPoll.title}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {pollTiming(pollSummary.nextPoll.closesAt, "open").label}
+                    </p>
+                  </Link>
+                ) : (
+                  <p className="rounded-xl border border-dashed border-border/70 px-3 py-2.5 text-xs text-muted-foreground">
+                    Nothing is open right now.
+                  </p>
+                )}
+
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    nativeButton={false}
+                    render={
+                      <Link href={`/dashboard/groups/${group.id}/polls`} />
+                    }
+                  >
+                    View polls
+                    <ArrowRightIcon />
+                  </Button>
+                  {pollSummary.canCreate ? (
+                    <Button
+                      size="sm"
+                      nativeButton={false}
+                      render={
+                        <Link
+                          href={`/dashboard/groups/${group.id}/polls/new`}
+                        />
+                      }
+                    >
+                      <PlusIcon />
+                      New poll
+                    </Button>
+                  ) : null}
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
 
           <Card className="sn-rise sn-delay-4">
             <CardHeader>

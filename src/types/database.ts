@@ -1,4 +1,8 @@
-import type { ExpenseSplitMode } from "./index";
+import type {
+  ExpenseSplitMode,
+  PollResultsVisibility,
+  PollSelection,
+} from "./index";
 
 export type Json =
   | string
@@ -20,6 +24,7 @@ export type ExpenseCategory =
 
 export type MemberRole = "owner" | "co_owner" | "editor" | "viewer";
 export type SettlementMethod = "upi" | "cash" | "bank_transfer" | "other";
+export type PollStatus = "open" | "closed" | "cancelled";
 
 export type Database = {
   public: {
@@ -249,6 +254,99 @@ export type Database = {
         };
         Relationships: [];
       };
+      polls: {
+        Row: {
+          id: string;
+          group_id: string;
+          created_by: string;
+          title: string;
+          description: string | null;
+          status: PollStatus;
+          selection: PollSelection;
+          results_visibility: PollResultsVisibility;
+          is_anonymous: boolean;
+          closes_at: string;
+          closed_at: string | null;
+          cancelled_at: string | null;
+          deadline_reminder_sent_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          group_id: string;
+          created_by: string;
+          title: string;
+          description?: string | null;
+          status?: PollStatus;
+          selection?: PollSelection;
+          results_visibility?: PollResultsVisibility;
+          is_anonymous?: boolean;
+          closes_at: string;
+          closed_at?: string | null;
+          cancelled_at?: string | null;
+          deadline_reminder_sent_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          title?: string;
+          description?: string | null;
+          status?: PollStatus;
+          selection?: PollSelection;
+          results_visibility?: PollResultsVisibility;
+          is_anonymous?: boolean;
+          closes_at?: string;
+          closed_at?: string | null;
+          cancelled_at?: string | null;
+          deadline_reminder_sent_at?: string | null;
+        };
+        Relationships: [];
+      };
+      poll_options: {
+        Row: {
+          id: string;
+          poll_id: string;
+          label: string;
+          image_url: string | null;
+          position: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          poll_id: string;
+          label: string;
+          image_url?: string | null;
+          position?: number;
+          created_at?: string;
+        };
+        Update: {
+          label?: string;
+          image_url?: string | null;
+          position?: number;
+        };
+        Relationships: [];
+      };
+      poll_votes: {
+        Row: {
+          id: string;
+          poll_id: string;
+          option_id: string;
+          user_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          poll_id: string;
+          option_id: string;
+          user_id: string;
+          created_at?: string;
+        };
+        Update: {
+          option_id?: string;
+        };
+        Relationships: [];
+      };
       notification_preferences: {
         Row: {
           user_id: string;
@@ -256,6 +354,7 @@ export type Database = {
           comment_replies: boolean;
           mentions: boolean;
           reactions: boolean;
+          poll_updates: boolean;
           updated_at: string;
         };
         Insert: {
@@ -264,6 +363,7 @@ export type Database = {
           comment_replies?: boolean;
           mentions?: boolean;
           reactions?: boolean;
+          poll_updates?: boolean;
           updated_at?: string;
         };
         Update: {
@@ -271,6 +371,7 @@ export type Database = {
           comment_replies?: boolean;
           mentions?: boolean;
           reactions?: boolean;
+          poll_updates?: boolean;
           updated_at?: string;
         };
         Relationships: [];
@@ -287,6 +388,8 @@ export type Database = {
           expense_title: string | null;
           comment_id: string | null;
           reaction_emoji: string | null;
+          poll_id: string | null;
+          poll_title: string | null;
           dedupe_key: string;
           read_at: string | null;
           created_at: string;
@@ -302,6 +405,8 @@ export type Database = {
           expense_title?: string | null;
           comment_id?: string | null;
           reaction_emoji?: string | null;
+          poll_id?: string | null;
+          poll_title?: string | null;
           dedupe_key: string;
           read_at?: string | null;
           created_at?: string;
@@ -350,12 +455,61 @@ export type Database = {
         };
         Returns: string;
       };
+      create_poll: {
+        Args: {
+          p_group_id: string;
+          p_title: string;
+          p_description: string | null;
+          p_closes_at: string;
+          p_selection: PollSelection;
+          p_is_anonymous: boolean;
+          p_results_visibility: PollResultsVisibility;
+          p_options: Json;
+        };
+        Returns: string;
+      };
+      update_poll: {
+        Args: {
+          p_poll_id: string;
+          p_title: string;
+          p_description: string | null;
+          p_closes_at: string;
+          p_selection: PollSelection;
+          p_is_anonymous: boolean;
+          p_results_visibility: PollResultsVisibility;
+          p_options: Json;
+        };
+        Returns: string;
+      };
+      save_poll_votes: {
+        Args: { p_poll_id: string; p_option_ids: string[] };
+        Returns: undefined;
+      };
+      close_poll: {
+        Args: { p_poll_id: string };
+        Returns: undefined;
+      };
+      cancel_poll: {
+        Args: { p_poll_id: string };
+        Returns: undefined;
+      };
+      poll_results: {
+        Args: { p_poll_id: string };
+        Returns: Json;
+      };
+      sync_group_polls: {
+        Args: { p_group_id: string };
+        Returns: undefined;
+      };
     };
     Enums: {
       expense_category: ExpenseCategory;
       expense_split_mode: ExpenseSplitMode;
       member_role: MemberRole;
       settlement_method: SettlementMethod;
+      poll_status: PollStatus;
+      poll_selection: PollSelection;
+      poll_results_visibility: PollResultsVisibility;
     };
     CompositeTypes: { [_ in never]: never };
   };
