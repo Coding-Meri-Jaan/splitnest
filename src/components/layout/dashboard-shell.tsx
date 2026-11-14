@@ -1,8 +1,7 @@
 "use client";
 
-import { Suspense, type ReactNode } from "react";
+import { type ReactNode } from "react";
 
-import { MobileBottomNav } from "@/components/layout/dashboard-sidebar";
 import { useSidebarCollapsed } from "@/components/layout/sidebar-store";
 import { cn } from "@/lib/utils";
 
@@ -34,14 +33,10 @@ export function DashboardShell({
 
       <div className="flex min-h-svh min-w-0 flex-1 flex-col">
         {topbar}
-        <main className="mx-auto w-full max-w-[88rem] flex-1 px-4 pt-6 pb-28 sm:px-6 md:px-10 md:pt-10 md:pb-12">
+        <main className="mx-auto w-full max-w-[88rem] flex-1 px-4 pt-6 pb-12 sm:px-6 md:px-10 md:pt-10">
           {children}
         </main>
       </div>
-
-      <Suspense fallback={null}>
-        <MobileBottomNav />
-      </Suspense>
     </div>
   );
 }

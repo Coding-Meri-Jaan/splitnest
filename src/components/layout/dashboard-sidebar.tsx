@@ -133,38 +133,6 @@ export function SidebarNav({ onNavigate, compact = false }: SidebarNavProps) {
   );
 }
 
-export function MobileBottomNav() {
-  const pathname = usePathname();
-
-  return (
-    <nav
-      aria-label="Mobile"
-      className="fixed inset-x-3 bottom-3 z-40 flex items-center justify-around gap-1 rounded-2xl border border-border/60 bg-card/85 px-1.5 py-1.5 shadow-2xl shadow-foreground/15 backdrop-blur-xl md:hidden"
-    >
-      {navItems.map((item) => {
-        const isActive = isActivePath(pathname, item.href);
-
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            aria-current={isActive ? "page" : undefined}
-            className={cn(
-              "flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-1 py-1.5 text-[0.65rem] font-medium transition-colors",
-              isActive
-                ? "bg-linear-to-br from-primary to-brand text-white shadow-md shadow-brand/25"
-                : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
-            )}
-          >
-            <item.icon className="size-5" aria-hidden />
-            <span className="truncate">{item.label}</span>
-          </Link>
-        );
-      })}
-    </nav>
-  );
-}
-
 export function DashboardSidebar() {
   const collapsed = useSidebarCollapsed();
 
