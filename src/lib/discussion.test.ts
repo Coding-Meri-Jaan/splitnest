@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  REACTION_EMOJIS,
+  QUICK_REACTIONS,
+  buildCommentTree,
   buildMentionPattern,
   findMentionedMembers,
   isNotificationKind,
@@ -10,6 +11,7 @@ import {
   notificationText,
   summarizeReactions,
 } from "@/lib/discussion";
+import type { CommentView } from "@/types";
 
 const members = [
   { id: "u1", name: "Rishabh Sharma" },
@@ -18,28 +20,39 @@ const members = [
 ];
 
 describe("isReactionEmoji", () => {
-  it("accepts the supported reactions and rejects everything else", () => {
-    for (const emoji of REACTION_EMOJIS) {
+  it("accepts the quick reactions and any single emoji", () => {
+    for (const emoji of QUICK_REACTIONS) {
       expect(isReactionEmoji(emoji)).toBe(true);
     }
-    expect(isReactionEmoji("🔥")).toBe(false);
+    expect(isReactionEmoji("🔥")).toBe(true);
+    expect(isReactionEmoji("👀")).toBe(true);
+    expect(isReactionEmoji("🇺🇸")).toBe(true);
+    expect(isReactionEmoji("👨‍👩‍👧‍👦")).toBe(true);
+    expect(isReactionEmoji("👍🏽")).toBe(true);
+  });
+
+  it("rejects text, empty values, and more than one emoji", () => {
     expect(isReactionEmoji("")).toBe(false);
+    expect(isReactionEmoji("hello")).toBe(false);
+    expect(isReactionEmoji("👍❤️")).toBe(false);
+    expect(isReactionEmoji("🔥🔥")).toBe(false);
+    expect(isReactionEmoji("🔥".repeat(20))).toBe(false);
   });
 });
 
 describe("summarizeReactions", () => {
-  it("orders reactions, counts people, and marks the current user", () => {
+  it("orders quick reactions first, then counts people and marks the current user", () => {
     const summary = summarizeReactions(
       [
+        { emoji: "🔥", userId: "u1", userName: "Rishabh Sharma" },
         { emoji: "❤️", userId: "u2", userName: "Ana Maria" },
         { emoji: "❤️", userId: "u3", userName: "Dev" },
         { emoji: "👍", userId: "u1", userName: "Rishabh Sharma" },
-        { emoji: "🔥", userId: "u1", userName: "Rishabh Sharma" },
       ],
       "u2",
     );
 
-    expect(summary.map((item) => item.emoji)).toEqual(["👍", "❤️"]);
+    expect(summary.map((item) => item.emoji)).toEqual(["👍", "❤️", "🔥"]);
     expect(summary[0]).toMatchObject({
       count: 1,
       reactedByMe: false,
@@ -50,6 +63,24 @@ describe("summarizeReactions", () => {
       reactedByMe: true,
       names: ["Ana Maria", "Dev"],
     });
+    expect(summary[2]).toMatchObject({
+      count: 1,
+      reactedByMe: false,
+      names: ["Rishabh Sharma"],
+    });
+  });
+
+  it("ranks non-quick reactions by count, then by first appearance", () => {
+    const summary = summarizeReactions(
+      [
+        { emoji: "🔥", userId: "u1", userName: "Rishabh Sharma" },
+        { emoji: "🎯", userId: "u2", userName: "Ana Maria" },
+        { emoji: "🎯", userId: "u3", userName: "Dev" },
+      ],
+      "u1",
+    );
+
+    expect(summary.map((item) => item.emoji)).toEqual(["🎯", "🔥"]);
   });
 
   it("does not double count a duplicate row for the same person", () => {
@@ -64,6 +95,53 @@ describe("summarizeReactions", () => {
     expect(summary).toHaveLength(1);
     expect(summary[0].count).toBe(1);
     expect(summary[0].reactedByMe).toBe(true);
+  });
+});
+
+describe("buildCommentTree", () => {
+  function comment(
+    id: string,
+    parentId: string | null,
+    createdAt: string,
+  ): CommentView {
+    return {
+      id,
+      expenseId: "e1",
+      parentId,
+      authorId: `author-${id}`,
+      authorName: `Author ${id}`,
+      body: id,
+      createdAt,
+      editedAt: null,
+      isMine: false,
+      canEdit: false,
+      canDelete: false,
+      mentions: [],
+      reactions: [],
+    };
+  }
+
+  it("nests replies to any depth in conversation order", () => {
+    const tree = buildCommentTree([
+      comment("a", null, "2026-01-01T10:00:00Z"),
+      comment("b", "a", "2026-01-01T10:01:00Z"),
+      comment("c", "b", "2026-01-01T10:02:00Z"),
+      comment("d", "c", "2026-01-01T10:03:00Z"),
+      comment("e", null, "2026-01-01T10:04:00Z"),
+    ]);
+
+    expect(tree.map((node) => node.id)).toEqual(["a", "e"]);
+    expect(tree[0].replies.map((node) => node.id)).toEqual(["b"]);
+    expect(tree[0].replies[0].replies[0].id).toBe("c");
+    expect(tree[0].replies[0].replies[0].replies[0].id).toBe("d");
+  });
+
+  it("keeps a reply whose parent is missing instead of dropping it", () => {
+    const tree = buildCommentTree([
+      comment("orphan", "missing", "2026-01-01T10:00:00Z"),
+    ]);
+
+    expect(tree.map((node) => node.id)).toEqual(["orphan"]);
   });
 });
 
@@ -124,6 +202,9 @@ describe("notificationText", () => {
     expect(notificationText("expense_reaction", "Ana", "Dinner", "❤️")).toBe(
       "Ana reacted ❤️ “Dinner”",
     );
+    expect(notificationText("comment_reaction", "Ana", "Dinner", "🔥")).toBe(
+      "Ana reacted 🔥 to your comment on “Dinner”",
+    );
   });
 
   it("describes poll events without needing an expense title", () => {
@@ -149,6 +230,7 @@ describe("isNotificationKind", () => {
       "comment_reply",
       "mention",
       "expense_reaction",
+      "comment_reaction",
       "poll_created",
       "poll_deadline",
       "poll_closed",

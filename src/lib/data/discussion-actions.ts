@@ -146,18 +146,12 @@ export async function createCommentAction(
   if (parentId) {
     const { data: parent, error: parentError } = await supabase
       .from("expense_comments")
-      .select("id, expense_id, parent_id")
+      .select("id, expense_id")
       .eq("id", parentId)
       .maybeSingle();
 
     if (parentError || !parent || parent.expense_id !== expenseId) {
       return { error: "That comment could not be found.", message: null };
-    }
-    if (parent.parent_id !== null) {
-      return {
-        error: "Reply to the main comment so the thread stays readable.",
-        message: null,
-      };
     }
   }
 
@@ -311,7 +305,7 @@ export async function toggleReactionAction(
     return { error: "That comment could not be found.", message: null };
   }
   if (!isReactionEmoji(emoji)) {
-    return { error: "Choose one of the available reactions.", message: null };
+    return { error: "Choose a single emoji to react with.", message: null };
   }
 
   const supabase = await createSupabaseServerClient();

@@ -1,13 +1,16 @@
 # Feature 3 — Group polls: executable QA plan
 
-Run this after `supabase/migrations/0007_group_polls.sql` has been applied to the
-project the test site points at. Every phase lists the exact action and the
-result that counts as a pass.
+Run this after `supabase/migrations/0007_group_polls.sql` and
+`supabase/migrations/0008_discussion_improvements.sql` have been applied to the
+project the test site points at. Apply 0007 first, then 0008. Every phase lists
+the exact action and the result that counts as a pass.
 
 - Live site: https://splitnest-payments.netlify.app
 - Health probe: https://splitnest-payments.netlify.app/api/health
-- Migration file: `supabase/migrations/0007_group_polls.sql`
-- Deployed commit for this feature: `9723b1a`
+- Migration files: `supabase/migrations/0007_group_polls.sql`,
+  `supabase/migrations/0008_discussion_improvements.sql`
+- Deployed commit for the poll feature: `9723b1a`
+- Discussion follow-up checks: `docs/qa/discussion-improvements-qa.md`
 
 ## 0. Accounts and test data
 
@@ -27,7 +30,8 @@ Viewer) are changed.
 
 1. Open the Supabase SQL editor for project `ormodcniraaxctqdxunz`.
 2. Paste the whole contents of `supabase/migrations/0007_group_polls.sql` and
-   run it. Re-running is safe: tables, indexes, columns, and functions are
+   run it. Then paste `supabase/migrations/0008_discussion_improvements.sql`
+   and run it. Re-running is safe: tables, indexes, columns, and functions are
    idempotent, and constraints/triggers are dropped before being recreated.
 3. Verify the objects landed:
 

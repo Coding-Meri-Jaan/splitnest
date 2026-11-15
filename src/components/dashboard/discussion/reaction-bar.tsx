@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { SmilePlusIcon } from "lucide-react";
 
+import { EmojiPicker } from "@/components/dashboard/discussion/emoji-picker";
 import { toggleReactionAction } from "@/lib/data/discussion-actions";
-import { REACTION_EMOJIS } from "@/lib/discussion";
+import { QUICK_REACTIONS } from "@/lib/discussion";
 import { cn } from "@/lib/utils";
 import type { ReactionEmoji, ReactionSummary } from "@/types";
 
@@ -29,6 +29,20 @@ function reactionLabel(
   }`;
 }
 
+/**
+ * Quick reactions are revealed on hover or keyboard focus. Existing reaction
+ * counts stay visible, and the "+" trigger is always there so a first-time
+ * visitor can discover the full picker. Touch devices show the quick row
+ * without needing a hover.
+ */
+const QUICK_ROW_CLASS = cn(
+  "flex items-center gap-0.5 overflow-hidden opacity-0 transition-[max-width,opacity] duration-150 motion-reduce:transition-none",
+  "max-w-0",
+  "group-hover/reactions:max-w-[20rem] group-hover/reactions:opacity-100",
+  "group-focus-within/reactions:max-w-[20rem] group-focus-within/reactions:opacity-100",
+  "[@media(hover:none)]:max-w-[20rem] [@media(hover:none)]:opacity-100",
+);
+
 export function ReactionBar({
   expenseId,
   groupId,
@@ -40,6 +54,9 @@ export function ReactionBar({
   const [pendingEmoji, setPendingEmoji] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const byEmoji = new Map(reactions.map((reaction) => [reaction.emoji, reaction]));
+  const quickReactions = QUICK_REACTIONS.filter(
+    (emoji) => !byEmoji.has(emoji),
+  );
 
   function toggle(emoji: ReactionEmoji) {
     const formData = new FormData();
@@ -61,6 +78,10 @@ export function ReactionBar({
     const count = summary?.count ?? 0;
     const active = summary?.reactedByMe ?? false;
     const busy = pending && pendingEmoji === emoji;
+    const label =
+      count > 0
+        ? reactionLabel(emoji, count, active, summary?.names ?? [])
+        : `React with ${emoji}`;
 
     return (
       <button
@@ -68,13 +89,8 @@ export function ReactionBar({
         type="button"
         onClick={() => toggle(emoji)}
         disabled={pending}
-        aria-pressed={active}
-        aria-label={reactionLabel(
-          emoji,
-          count,
-          active,
-          summary?.names ?? [],
-        )}
+        aria-pressed={count > 0 ? active : undefined}
+        aria-label={label}
         title={summary?.names.join(", ") || `React with ${emoji}`}
         className={cn(
           "inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs font-medium transition-all focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none disabled:opacity-60",
@@ -97,23 +113,30 @@ export function ReactionBar({
     );
   }
 
+  const quickRow = quickReactions.length > 0 ? (
+    <div className={QUICK_ROW_CLASS} data-testid="quick-reactions">
+      {quickReactions.map((emoji) =>
+        chip(emoji, variant === "comment" ? "xs" : "sm"),
+      )}
+    </div>
+  ) : null;
+
   if (variant === "comment") {
-    const present = reactions.map((reaction) => reaction.emoji);
-
     return (
-      <div className="space-y-1">
-        <div className="flex flex-wrap items-center gap-1">
-          {present.map((emoji) => chip(emoji, "xs"))}
+      <div className="group/reactions space-y-1">
+        <div
+          role="group"
+          aria-label="React to this comment"
+          className="flex flex-wrap items-center gap-1"
+        >
+          {reactions.map((reaction) => chip(reaction.emoji, "xs"))}
+          {quickRow}
 
-          <details className="group/react relative">
-            <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded-full px-2 py-1 text-[0.7rem] font-medium text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
-              <SmilePlusIcon className="size-3.5" aria-hidden />
-              React
-            </summary>
-            <div className="mt-1.5 flex max-w-64 flex-wrap gap-1 rounded-xl border border-border/60 bg-card/95 p-1.5 shadow-lg shadow-foreground/10">
-              {REACTION_EMOJIS.map((emoji) => chip(emoji, "sm"))}
-            </div>
-          </details>
+          <EmojiPicker
+            onSelect={toggle}
+            disabled={pending}
+            label={`React to ${commentId ? "this comment" : "this expense"}`}
+          />
         </div>
 
         {error ? (
@@ -126,13 +149,21 @@ export function ReactionBar({
   }
 
   return (
-    <div className="space-y-1">
+    <div className="group/reactions space-y-1">
       <div
         role="group"
         aria-label="React to this expense"
         className="flex flex-wrap items-center gap-1.5"
       >
-        {REACTION_EMOJIS.map((emoji) => chip(emoji, "sm"))}
+        {reactions.map((reaction) => chip(reaction.emoji, "sm"))}
+        {quickRow}
+
+        <EmojiPicker
+          onSelect={toggle}
+          disabled={pending}
+          label="More reactions"
+          showLabel
+        />
       </div>
       {error ? (
         <p role="alert" className="text-xs text-destructive">

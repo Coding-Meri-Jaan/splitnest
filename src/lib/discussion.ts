@@ -1,22 +1,17 @@
+import { QUICK_REACTIONS, isReactionEmoji } from "@/lib/emoji";
 import type {
+  CommentThread,
+  CommentView,
   DiscussionMember,
   NotificationKind,
-  ReactionEmoji,
   ReactionSummary,
 } from "@/types";
 
-export const REACTION_EMOJIS: readonly ReactionEmoji[] = [
-  "👍",
-  "❤️",
-  "😂",
-  "👀",
-  "🙌",
-  "😮",
-];
+export { QUICK_REACTIONS, isReactionEmoji } from "@/lib/emoji";
 
-export function isReactionEmoji(value: string): value is ReactionEmoji {
-  return (REACTION_EMOJIS as readonly string[]).includes(value);
-}
+const QUICK_REACTION_ORDER = new Map<string, number>(
+  QUICK_REACTIONS.map((emoji, index) => [emoji, index]),
+);
 
 export interface ReactionRow {
   emoji: string;
@@ -27,33 +22,85 @@ export interface ReactionRow {
 /**
  * Collapses raw reaction rows into the compact summary the UI renders.
  * A person appears at most once per emoji even if a duplicate row slipped in.
+ * Quick reactions stay in their familiar order; everything else is ranked by
+ * how many people used it, then by first appearance.
  */
 export function summarizeReactions(
   rows: ReactionRow[],
   currentUserId: string,
 ): ReactionSummary[] {
-  const byEmoji = new Map<ReactionEmoji, Map<string, string>>();
+  const byEmoji = new Map<
+    string,
+    { people: Map<string, string>; firstSeen: number }
+  >();
+  let seen = 0;
 
   for (const row of rows) {
-    if (!isReactionEmoji(row.emoji)) continue;
-    const people = byEmoji.get(row.emoji) ?? new Map<string, string>();
-    people.set(row.userId, row.userName);
-    byEmoji.set(row.emoji, people);
+    const emoji = row.emoji.trim();
+    if (!isReactionEmoji(emoji)) continue;
+
+    let entry = byEmoji.get(emoji);
+    if (!entry) {
+      entry = { people: new Map<string, string>(), firstSeen: seen++ };
+      byEmoji.set(emoji, entry);
+    }
+    entry.people.set(row.userId, row.userName);
   }
 
-  return REACTION_EMOJIS.flatMap((emoji) => {
-    const people = byEmoji.get(emoji);
-    if (!people || people.size === 0) return [];
+  return [...byEmoji.entries()]
+    .sort(([emojiA, a], [emojiB, b]) => {
+      const quickA = QUICK_REACTION_ORDER.get(emojiA);
+      const quickB = QUICK_REACTION_ORDER.get(emojiB);
 
-    return [
-      {
-        emoji,
-        count: people.size,
-        reactedByMe: people.has(currentUserId),
-        names: [...people.values()].sort((a, b) => a.localeCompare(b)),
-      },
-    ];
-  });
+      if (quickA !== undefined || quickB !== undefined) {
+        if (quickA === undefined) return 1;
+        if (quickB === undefined) return -1;
+        return quickA - quickB;
+      }
+
+      if (a.people.size !== b.people.size) {
+        return b.people.size - a.people.size;
+      }
+      return a.firstSeen - b.firstSeen;
+    })
+    .map(([emoji, entry]) => ({
+      emoji,
+      count: entry.people.size,
+      reactedByMe: entry.people.has(currentUserId),
+      names: [...entry.people.values()].sort((a, b) => a.localeCompare(b)),
+    }));
+}
+
+/**
+ * Turns the flat comment rows into an arbitrarily deep reply tree. The
+ * database returns comments oldest-first, so siblings keep their natural
+ * conversation order.
+ *
+ * A reply whose parent is missing (for example a row filtered by RLS) becomes
+ * a root instead of disappearing.
+ */
+export function buildCommentTree(comments: CommentView[]): CommentThread[] {
+  const nodes = new Map<string, CommentThread>();
+  for (const comment of comments) {
+    nodes.set(comment.id, { ...comment, replies: [] });
+  }
+
+  const roots: CommentThread[] = [];
+  for (const comment of comments) {
+    const node = nodes.get(comment.id);
+    if (!node) continue;
+
+    const parent =
+      comment.parentId === null ? undefined : nodes.get(comment.parentId);
+
+    if (parent && parent.id !== node.id) {
+      parent.replies.push(node);
+    } else {
+      roots.push(node);
+    }
+  }
+
+  return roots;
 }
 
 function escapeRegExp(value: string): string {
@@ -184,6 +231,7 @@ export function isNotificationKind(value: string): value is NotificationKind {
     value === "comment_reply" ||
     value === "mention" ||
     value === "expense_reaction" ||
+    value === "comment_reaction" ||
     value === "poll_created" ||
     value === "poll_deadline" ||
     value === "poll_closed" ||
@@ -214,6 +262,8 @@ export function notificationText(
       return `${actorName} replied to your comment on “${title}”`;
     case "mention":
       return `${actorName} mentioned you on “${title}”`;
+    case "comment_reaction":
+      return `${actorName} reacted ${reactionEmoji ?? "to"} to your comment on “${title}”`;
     case "expense_reaction":
       return `${actorName} reacted ${reactionEmoji ?? "to"} “${title}”`;
     case "expense_comment":

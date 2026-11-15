@@ -254,7 +254,7 @@ export async function GET() {
   }
   if (missing.length > 0) {
     steps.push(
-      `Run supabase/migrations/0001_init.sql, 0002_expenses_and_invites.sql, 0003_profile_names.sql, 0004_custom_splits.sql, 0005_group_roles.sql, 0006_expense_discussions.sql, then 0007_group_polls.sql in the Supabase SQL editor (missing: ${missing.join(", ")}).`,
+      `Run supabase/migrations/0001_init.sql, 0002_expenses_and_invites.sql, 0003_profile_names.sql, 0004_custom_splits.sql, 0005_group_roles.sql, 0006_expense_discussions.sql, 0007_group_polls.sql, then 0008_discussion_improvements.sql in the Supabase SQL editor (missing: ${missing.join(", ")}).`,
     );
   }
   if (report.auth === "ok" && report.splitSchema === "missing") {
@@ -284,7 +284,7 @@ export async function GET() {
   }
   if (report.auth === "ok" && report.pollsSchema === "missing") {
     steps.push(
-      "Group polls are unavailable: run supabase/migrations/0007_group_polls.sql in the Supabase SQL editor. Expenses, discussions, splits, and settlements keep working without it.",
+      "Group polls are unavailable: run supabase/migrations/0007_group_polls.sql, then 0008_discussion_improvements.sql, in the Supabase SQL editor. Expenses, discussions, splits, and settlements keep working without them.",
     );
   } else if (report.pollsSchema === "unreachable") {
     steps.push(

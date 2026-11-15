@@ -12,8 +12,8 @@ import {
 } from "@/components/ui/card";
 import { getExpenseDiscussion } from "@/lib/data/discussion";
 import { DISCUSSION_SETUP_MESSAGE } from "@/lib/data/errors";
-import { cn } from "@/lib/utils";
-import type { CommentView, DiscussionMember } from "@/types";
+import { buildCommentTree } from "@/lib/discussion";
+import type { DiscussionMember } from "@/types";
 
 interface ExpenseDiscussionProps {
   expenseId: string;
@@ -43,17 +43,7 @@ export async function ExpenseDiscussion({
     canModerate,
   );
 
-  const topLevel = discussion.comments.filter(
-    (comment) => comment.parentId === null,
-  );
-  const repliesByParent = new Map<string, CommentView[]>();
-  for (const comment of discussion.comments) {
-    if (comment.parentId === null) continue;
-    const bucket = repliesByParent.get(comment.parentId) ?? [];
-    bucket.push(comment);
-    repliesByParent.set(comment.parentId, bucket);
-  }
-
+  const threads = buildCommentTree(discussion.comments);
   const total = discussion.comments.length;
 
   return (
@@ -114,7 +104,7 @@ export async function ExpenseDiscussion({
               currentUserId={currentUserId}
             />
 
-            {topLevel.length === 0 ? (
+            {threads.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-border/70 px-4 py-8 text-center">
                 <p className="text-sm font-medium">No comments yet</p>
                 <p className="mx-auto mt-1 max-w-sm text-sm leading-relaxed text-muted-foreground">
@@ -124,12 +114,11 @@ export async function ExpenseDiscussion({
                 </p>
               </div>
             ) : (
-              <div className={cn("space-y-6")}>
-                {topLevel.map((comment) => (
+              <div className="space-y-6">
+                {threads.map((comment) => (
                   <CommentItem
                     key={comment.id}
                     comment={comment}
-                    replies={repliesByParent.get(comment.id) ?? []}
                     expenseId={expenseId}
                     groupId={groupId}
                     members={members}

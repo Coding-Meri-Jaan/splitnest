@@ -30,8 +30,9 @@ const OPTIONS = [
   },
   {
     name: "reactions",
-    label: "Reactions to my expenses",
-    description: "When someone reacts to an expense you added.",
+    label: "Reactions to my expenses and comments",
+    description:
+      "When someone reacts to an expense you added or a comment you wrote.",
   },
   {
     name: "pollUpdates",

@@ -214,6 +214,7 @@ alter table public.notifications
       'comment_reply',
       'mention',
       'expense_reaction',
+      'comment_reaction',
       'poll_created',
       'poll_deadline',
       'poll_closed',

@@ -27,12 +27,14 @@ import { mentionSegments } from "@/lib/discussion";
 import { formatDateTime } from "@/lib/format";
 import { initialFormState, type FormState } from "@/lib/form-state";
 import { cn } from "@/lib/utils";
-import type { CommentView, DiscussionMember } from "@/types";
+import type { CommentThread, DiscussionMember } from "@/types";
 
 interface CommentItemProps {
-  comment: CommentView;
-  replies?: CommentView[];
-  isReply?: boolean;
+  comment: CommentThread;
+  /** Zero for a top-level comment; no hard limit for replies. */
+  depth?: number;
+  /** Shown when indentation is capped on very deep threads. */
+  replyToName?: string;
   expenseId: string;
   groupId: string;
   members: DiscussionMember[];
@@ -41,13 +43,18 @@ interface CommentItemProps {
 
 export function CommentItem({
   comment,
-  replies = [],
-  isReply = false,
+  depth = 0,
+  replyToName,
   expenseId,
   groupId,
   members,
   currentUserId,
 }: CommentItemProps) {
+  const replies = comment.replies;
+  const isReply = depth > 0;
+  // Stop compounding the left margin after two levels. The conversation keeps
+  // its full depth, but a phone does not end up with a one-character column.
+  const showIndent = depth > 0 && depth <= 2;
   const [editing, setEditing] = useState(false);
   const [replying, setReplying] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -66,9 +73,11 @@ export function CommentItem({
   function removeComment() {
     if (
       !window.confirm(
-        isReply
-          ? "Delete this reply?"
-          : "Delete this comment? Any replies underneath it will also be removed.",
+        replies.length > 0
+          ? "Delete this comment? Everything replied underneath it will also be removed."
+          : isReply
+            ? "Delete this reply?"
+            : "Delete this comment?",
       )
     ) {
       return;
@@ -87,7 +96,9 @@ export function CommentItem({
     <article
       className={cn(
         "sn-rise relative",
-        isReply ? "ml-3 border-l-2 border-border/50 pl-3 sm:ml-10 sm:pl-4" : "",
+        showIndent
+          ? "ml-3 border-l-2 border-border/50 pl-3 sm:ml-6 sm:pl-4"
+          : "",
       )}
     >
       <div className="flex gap-3">
@@ -106,6 +117,9 @@ export function CommentItem({
               <span className="text-[0.68rem] text-muted-foreground">
                 {formatDateTime(comment.createdAt)}
                 {comment.editedAt ? " · edited" : ""}
+                {depth >= 3 && replyToName
+                  ? ` · replying to ${replyToName}`
+                  : ""}
               </span>
             </div>
 
@@ -168,16 +182,14 @@ export function CommentItem({
                 variant="comment"
               />
 
-              {!isReply ? (
-                <button
-                  type="button"
-                  onClick={() => setReplying((open) => !open)}
-                  className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[0.7rem] font-medium text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground"
-                >
-                  <ReplyIcon className="size-3.5" aria-hidden />
-                  Reply
-                </button>
-              ) : null}
+              <button
+                type="button"
+                onClick={() => setReplying((open) => !open)}
+                className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[0.7rem] font-medium text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground"
+              >
+                <ReplyIcon className="size-3.5" aria-hidden />
+                Reply
+              </button>
 
               {comment.canEdit ? (
                 <button
@@ -232,7 +244,8 @@ export function CommentItem({
                 <CommentItem
                   key={reply.id}
                   comment={reply}
-                  isReply
+                  depth={depth + 1}
+                  replyToName={comment.isMine ? "you" : comment.authorName}
                   expenseId={expenseId}
                   groupId={groupId}
                   members={members}

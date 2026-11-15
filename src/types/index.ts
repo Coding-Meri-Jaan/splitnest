@@ -19,7 +19,12 @@ export function isCategoryId(value: string): value is CategoryId {
 
 export type ExpenseSplitMode = "equal" | "amount" | "percentage" | "shares";
 
-export type ReactionEmoji = "👍" | "❤️" | "😂" | "👀" | "🙌" | "😮";
+/**
+ * Any single emoji. The client, server actions, and database each validate the
+ * structure; the type stays a string so the catalog can grow without a code
+ * change everywhere.
+ */
+export type ReactionEmoji = string;
 
 export interface ReactionSummary {
   emoji: ReactionEmoji;
@@ -55,11 +60,17 @@ export interface CommentView {
   reactions: ReactionSummary[];
 }
 
+/** A comment plus its descendants, used by the recursive discussion UI. */
+export interface CommentThread extends CommentView {
+  replies: CommentThread[];
+}
+
 export type NotificationKind =
   | "expense_comment"
   | "comment_reply"
   | "mention"
   | "expense_reaction"
+  | "comment_reaction"
   | "poll_created"
   | "poll_deadline"
   | "poll_closed"
